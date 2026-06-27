@@ -15,8 +15,8 @@ interface Props {
   notifPrefs?: NotifPrefs
   onNameA: (v: string) => void
   onNameB: (v: string) => void
-  onAddTask: () => void
-  onEditTask: (t: Task) => void
+  onAddTask: (t: Task) => void
+  onRemoveTask: (id: string) => void
   onAddReward: () => void
   onEditReward: (r: Reward) => void
   onRestore: () => void
@@ -175,29 +175,64 @@ export function OrganizarView(props: Props) {
       {/* notifications */}
       <NotificationsCard uid={user.uid} pushEnabled={props.pushEnabled} prefs={props.notifPrefs} />
 
-      {/* tasks */}
+      {/* active tasks */}
       <div style={{ margin: '22px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 8px 4px' }}>
+        <div style={{ margin: '0 0 8px 4px' }}>
           <span style={sectionLabel as React.CSSProperties}>{model.tasksLabel}</span>
-          <button type="button" onClick={props.onAddTask} style={addBtn}>
-            + Tarea
-          </button>
         </div>
         <div style={{ ...card, overflow: 'hidden' }}>
-          {model.allTasks.map((t, i) => (
-            <div key={t.task.id}>
-              {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 55 }} />}
-              <button type="button" onClick={() => props.onEditTask(t.task)} style={listRowBtn}>
-                <span style={{ fontSize: 21, lineHeight: 1, width: 24, textAlign: 'center' }}>{t.emoji}</span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', font: `500 16px/1.25 ${SYS}`, color: '#2C2C28' }}>{t.name}</span>
-                  <span style={{ display: 'block', font: `400 13px/1.3 ${SYS}`, color: '#A29D93', marginTop: 1 }}>{t.metaSub}</span>
-                </span>
-                <span style={{ flex: 'none', font: `400 20px ${SYS}`, color: '#C9C4B8' }}>›</span>
-              </button>
+          {model.allTasks.length === 0 ? (
+            <div style={{ padding: '18px 16px', font: `400 15px ${SYS}`, color: '#B3AEA3', textAlign: 'center' }}>
+              Añade tareas desde la galería ✨
             </div>
-          ))}
+          ) : (
+            model.allTasks.map((t, i) => (
+              <div key={t.task.id}>
+                {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 55 }} />}
+                <div style={listRowBtn as React.CSSProperties}>
+                  <span style={{ fontSize: 21, lineHeight: 1, width: 24, textAlign: 'center' }}>{t.emoji}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', font: `500 16px/1.25 ${SYS}`, color: '#2C2C28' }}>{t.name}</span>
+                    <span style={{ display: 'block', font: `400 13px/1.3 ${SYS}`, color: '#A29D93', marginTop: 1 }}>{t.metaSub}</span>
+                  </span>
+                  <button type="button" onClick={() => props.onRemoveTask(t.task.id)} style={chipBtn(false)}>
+                    Quitar
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
+      </div>
+
+      {/* gallery of extra tasks */}
+      <div style={{ margin: '22px 16px 0' }}>
+        <div style={{ margin: '0 0 8px 4px' }}>
+          <span style={sectionLabel as React.CSSProperties}>{model.galleryLabel}</span>
+        </div>
+        {model.gallery.length === 0 ? (
+          <div style={{ ...card, padding: '16px 18px', font: `400 14px ${SYS}`, color: '#9A968C', textAlign: 'center' }}>
+            Ya tienes todas las tareas del catálogo activas 🎉
+          </div>
+        ) : (
+          <div style={{ ...card, overflow: 'hidden' }}>
+            {model.gallery.map((t, i) => (
+              <div key={t.task.id}>
+                {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 55 }} />}
+                <div style={listRowBtn as React.CSSProperties}>
+                  <span style={{ fontSize: 21, lineHeight: 1, width: 24, textAlign: 'center', opacity: 0.85 }}>{t.emoji}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', font: `500 16px/1.25 ${SYS}`, color: '#6E6A60' }}>{t.name}</span>
+                    <span style={{ display: 'block', font: `400 13px/1.3 ${SYS}`, color: '#A29D93', marginTop: 1 }}>{t.metaSub}</span>
+                  </span>
+                  <button type="button" onClick={() => props.onAddTask(t.task)} style={chipBtn(true)}>
+                    Añadir
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* rewards */}
@@ -301,6 +336,19 @@ const listRowBtn: React.CSSProperties = {
   border: 'none',
   textAlign: 'left',
   cursor: 'pointer',
+}
+
+function chipBtn(primary: boolean): React.CSSProperties {
+  return {
+    flex: 'none',
+    padding: '7px 14px',
+    borderRadius: 999,
+    border: 'none',
+    cursor: 'pointer',
+    font: `600 13px ${SYS}`,
+    background: primary ? '#B8896A' : '#EDE7DC',
+    color: primary ? '#FFFFFF' : '#9A968C',
+  }
 }
 
 function pillBtn(primary: boolean): React.CSSProperties {

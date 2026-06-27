@@ -1,5 +1,5 @@
 import type { Completion, HouseholdData, Reward, Slot, Task } from '../types'
-import { DAY_LONG } from './defaults'
+import { CATALOG_TASKS, DAY_LONG, resolveTask } from './defaults'
 
 // ---------- date / key helpers (ported 1:1 from the prototype) ----------
 export function localKey(d: Date): string {
@@ -148,7 +148,7 @@ export function computeStats(data: HouseholdData, now: Date): Stats {
   keys.forEach((k) => {
     const day = comp[k]
     Object.keys(day).forEach((tid) => {
-      const t = data.tasks.find((x) => x.id === tid)
+      const t = resolveTask(data.tasks, tid)
       if (t) lifetime += t.points
       const ts = compT(day[tid])
       if (ts) {
@@ -273,24 +273,19 @@ export function computeModel(data: HouseholdData, now: Date) {
   const done = sched.filter((t) => isDone(data, t.id, todayKey)).length
   const pct = total ? done / total : 0
 
-  // weekly scoreboard from recorded completions
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - monIndex(now))
+  // cumulative scoreboard — lifetime points per person, never reset
   let scoreA = 0
   let scoreB = 0
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    if (epochDay(d) > epochDay(now)) break
-    const c = data.completions[localKey(d)] || {}
+  Object.keys(data.completions).forEach((key) => {
+    const c = data.completions[key]
     Object.keys(c).forEach((tid) => {
-      const tk = data.tasks.find((x) => x.id === tid)
+      const tk = resolveTask(data.tasks, tid)
       if (!tk) return
       if (compP(c[tid]) === 'a') scoreA += tk.points
       else scoreB += tk.points
     })
-  }
-  const weekTotal = scoreA + scoreB
+  })
+  const totalPoints = scoreA + scoreB
 
   // cooperative streak (whole house done)
   let streak = 0
@@ -303,25 +298,30 @@ export function computeModel(data: HouseholdData, now: Date) {
     cursor.setDate(cursor.getDate() - 1)
   }
 
-  // organizar: tasks sorted
-  const sorted = data.tasks.slice().sort((x, y) => {
-    const fx = x.freq === 'daily' ? 0 : 1
-    const fy = y.freq === 'daily' ? 0 : 1
-    if (fx !== fy) return fx - fy
-    if (x.freq === 'weekly') return x.day - y.day
+  // organizar: active tasks + gallery of inactive catalog tasks
+  const sortTasks = (a: Task, b: Task) => {
+    const fa = a.freq === 'daily' ? 0 : 1
+    const fb = b.freq === 'daily' ? 0 : 1
+    if (fa !== fb) return fa - fb
+    if (a.freq === 'weekly' && b.freq === 'weekly') return a.day - b.day
     return 0
-  })
-  const allTasks: AllTaskRow[] = sorted.map((t) => {
+  }
+  const taskRow = (t: Task): AllTaskRow => {
     const schedLabel = t.freq === 'daily' ? 'Cada día' : `Cada ${DAY_LONG[t.day]}`
-    const who = t.assign === 'rotate' ? 'Equilibra ⚖️' : t.assign === 'a' ? nameA : nameB
-    return { task: t, emoji: t.emoji, name: t.name, metaSub: `${t.zone} · ${schedLabel} · ${who} · ${t.points} pt` }
-  })
+    return { task: t, emoji: t.emoji, name: t.name, metaSub: `${t.zone} · ${schedLabel} · ${t.points} pt` }
+  }
+  const activeIds = new Set(data.tasks.map((t) => t.id))
+  const allTasks: AllTaskRow[] = data.tasks.slice().sort(sortTasks).map(taskRow)
+  const gallery: AllTaskRow[] = CATALOG_TASKS.filter((t) => !activeIds.has(t.id))
+    .slice()
+    .sort(sortTasks)
+    .map(taskRow)
 
-  // rewards
+  // rewards — unlocked once the cumulative total reaches their cost
   const rewSorted = data.rewards.slice().sort((a, b) => a.cost - b.cost)
-  const nextReward: Reward | undefined = rewSorted.find((r) => weekTotal < r.cost)
+  const nextReward: Reward | undefined = rewSorted.find((r) => totalPoints < r.cost)
   const rewardRows: RewardRow[] = rewSorted.map((r) => {
-    const unlocked = weekTotal >= r.cost
+    const unlocked = totalPoints >= r.cost
     return {
       emoji: r.emoji,
       text: r.text,
@@ -374,7 +374,7 @@ export function computeModel(data: HouseholdData, now: Date) {
         : `Lleváis ${streak}${streak === 1 ? ' día' : ' días'} con la casa al día`,
     scoreA,
     scoreB,
-    weekTotal,
+    totalPoints,
     leaderA: scoreA > scoreB && scoreA > 0,
     leaderB: scoreB > scoreA && scoreB > 0,
     todayA,
@@ -383,14 +383,16 @@ export function computeModel(data: HouseholdData, now: Date) {
     countB: `· ${todayB.length}${todayB.length === 1 ? ' tarea' : ' tareas'}`,
     plant: plantInfo(data, now),
     nextReward,
-    nextRemaining: nextReward ? nextReward.cost - weekTotal : 0,
-    nextPct: nextReward ? `${Math.min(100, Math.round((weekTotal / nextReward.cost) * 100))}%` : '0%',
+    nextRemaining: nextReward ? nextReward.cost - totalPoints : 0,
+    nextPct: nextReward ? `${Math.min(100, Math.round((totalPoints / nextReward.cost) * 100))}%` : '0%',
     rewardRows,
     rewardEdits,
     medals,
     medalCount,
     allTasks,
-    tasksLabel: `Tareas (${data.tasks.length})`,
+    gallery,
+    tasksLabel: `Tus tareas (${data.tasks.length})`,
+    galleryLabel: `Galería de tareas (${gallery.length})`,
     rewardsLabel: `Recompensas (${data.rewards.length})`,
   }
 }

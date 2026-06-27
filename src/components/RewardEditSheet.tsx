@@ -51,7 +51,7 @@ export function RewardEditSheet({ initial, onClose, onSave, onDelete }: Props) {
 
       <div style={subLabel}>Coste en puntos</div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', borderRadius: 16, padding: '11px 14px 11px 18px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-        <span style={{ font: `500 15px ${SYS}`, color: '#6E6A60' }}>A los {e.cost} pts de la semana</span>
+        <span style={{ font: `500 15px ${SYS}`, color: '#6E6A60' }}>Al llegar a {e.cost} pts en total</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button type="button" onClick={() => set('cost', Math.max(5, e.cost - 5))} style={stepperBtn}>
             −

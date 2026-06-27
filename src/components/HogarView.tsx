@@ -42,7 +42,7 @@ export function HogarView({ model }: { model: ViewModel }) {
 
       {/* scoreboard */}
       <div style={{ margin: '18px 16px 0' }}>
-        <div style={sectionLabel}>Marcador de la semana</div>
+        <div style={sectionLabel}>Marcador total</div>
         <div style={{ ...card, display: 'flex', overflow: 'hidden' }}>
           <ScoreCell leader={model.leaderA} color={model.colorA} name={model.nameA} score={model.scoreA} />
           <div style={{ width: 1, background: 'rgba(0,0,0,0.06)' }} />
@@ -52,7 +52,7 @@ export function HogarView({ model }: { model: ViewModel }) {
 
       {/* rewards */}
       <div style={{ margin: '18px 16px 0' }}>
-        <div style={sectionLabel}>Recompensas · {model.weekTotal} pts esta semana</div>
+        <div style={sectionLabel}>Recompensas · {model.totalPoints} pts en total</div>
         {nextReward && (
           <div style={{ ...card, padding: '16px 18px', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

@@ -5,7 +5,7 @@ import { computeModel, dayComplete, localKey, toggleCompletion } from './lib/log
 import { defaultRewards, defaultTasks } from './lib/defaults'
 import { leaveHouseholdById, refreshInvite, updateHousehold } from './lib/household'
 import { celebrate } from './lib/celebrate'
-import type { Reward, RewardDraft, Task, TaskDraft } from './types'
+import type { Reward, RewardDraft, Task } from './types'
 import { Login } from './components/Login'
 import { Pairing } from './components/Pairing'
 import { Splash } from './components/Splash'
@@ -13,7 +13,6 @@ import { TabBar, type View } from './components/TabBar'
 import { HoyView } from './components/HoyView'
 import { HogarView } from './components/HogarView'
 import { OrganizarView } from './components/OrganizarView'
-import { TaskEditSheet } from './components/TaskEditSheet'
 import { RewardEditSheet } from './components/RewardEditSheet'
 
 const joinFromUrl = new URLSearchParams(window.location.search).get('join') ?? undefined
@@ -24,7 +23,6 @@ export default function App() {
 
   // ---- local UI state ----
   const [view, setView] = useState<View>('hoy')
-  const [editing, setEditing] = useState<TaskDraft | null>(null)
   const [rewardEditing, setRewardEditing] = useState<RewardDraft | null>(null)
   const [, setTick] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -74,16 +72,12 @@ export default function App() {
     await updateHousehold(hid, { completions, lastEditedBy: user.uid })
   }
 
-  const saveTask = async (t: Task) => {
-    const tasks = data.tasks.slice()
-    const i = tasks.findIndex((x) => x.id === t.id)
-    if (i >= 0) tasks[i] = t
-    else tasks.push(t)
-    setEditing(null)
-    await updateHousehold(hid, { tasks, lastEditedBy: user.uid })
+  // activate a preprogrammed task from the catalog
+  const addCatalogTask = async (t: Task) => {
+    if (data.tasks.some((x) => x.id === t.id)) return
+    await updateHousehold(hid, { tasks: [...data.tasks, { ...t }], lastEditedBy: user.uid })
   }
-  const deleteTask = async (id: string) => {
-    setEditing(null)
+  const removeTask = async (id: string) => {
     await updateHousehold(hid, { tasks: data.tasks.filter((t) => t.id !== id) })
   }
 
@@ -107,8 +101,6 @@ export default function App() {
 
   const restore = () => updateHousehold(hid, { tasks: defaultTasks(), rewards: defaultRewards() })
 
-  const addTask = () =>
-    setEditing({ id: 't' + Date.now().toString(36), emoji: '🧽', name: '', zone: 'General', freq: 'daily', day: 5, assign: 'rotate', points: 2, _new: true })
   const addReward = () => setRewardEditing({ id: 'r' + Date.now().toString(36), emoji: '🎁', text: '', cost: 30, _new: true })
 
   const inviteUrl = `${window.location.origin}/?join=${household.inviteCode ?? ''}`
@@ -130,8 +122,8 @@ export default function App() {
             inviteUrl={inviteUrl}
             onNameA={(v) => setName('a', v)}
             onNameB={(v) => setName('b', v)}
-            onAddTask={addTask}
-            onEditTask={(t) => setEditing({ ...t })}
+            onAddTask={addCatalogTask}
+            onRemoveTask={removeTask}
             onAddReward={addReward}
             onEditReward={(r) => setRewardEditing({ ...r })}
             onRestore={restore}
@@ -146,16 +138,6 @@ export default function App() {
 
       <TabBar view={view} onChange={setView} />
 
-      {editing && (
-        <TaskEditSheet
-          initial={editing}
-          nameA={model.nameA}
-          nameB={model.nameB}
-          onClose={() => setEditing(null)}
-          onSave={saveTask}
-          onDelete={deleteTask}
-        />
-      )}
       {rewardEditing && (
         <RewardEditSheet
           initial={rewardEditing}
