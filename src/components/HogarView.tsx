@@ -1,8 +1,17 @@
+import type { Reward } from '../types'
 import type { ViewModel } from '../lib/logic'
 import { Plant } from './Plant'
 import { card, cardLg, eyebrow, h1, sectionLabel, SYS } from './styles'
 
-export function HogarView({ model, onOpenHistory }: { model: ViewModel; onOpenHistory: () => void }) {
+export function HogarView({
+  model,
+  onOpenHistory,
+  onRedeem,
+}: {
+  model: ViewModel
+  onOpenHistory: () => void
+  onRedeem: (r: Reward) => void
+}) {
   const { plant, nextReward } = model
   return (
     <div>
@@ -74,7 +83,7 @@ export function HogarView({ model, onOpenHistory }: { model: ViewModel; onOpenHi
 
       {/* rewards */}
       <div style={{ margin: '18px 16px 0' }}>
-        <div style={sectionLabel}>Recompensas · {model.totalPoints} pts en total</div>
+        <div style={sectionLabel}>Recompensas · saldo {model.balance} pts</div>
         {nextReward && (
           <div style={{ ...card, padding: '16px 18px', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -102,27 +111,64 @@ export function HogarView({ model, onOpenHistory }: { model: ViewModel; onOpenHi
         )}
         <div style={{ ...card, overflow: 'hidden' }}>
           {model.rewardRows.map((r, i) => (
-            <div key={i}>
+            <div key={r.reward.id}>
               {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 54 }} />}
               <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 16px' }}>
                 <span style={{ fontSize: 21, lineHeight: 1, opacity: r.opacity }}>{r.emoji}</span>
                 <span style={{ flex: 1, minWidth: 0, font: `500 16px ${SYS}`, color: r.textColor }}>{r.text}</span>
-                <span
-                  style={{
-                    flex: 'none',
-                    font: `600 12px ${SYS}`,
-                    color: r.badgeColor,
-                    background: r.badgeBg,
-                    padding: '4px 10px',
-                    borderRadius: 999,
-                  }}
-                >
-                  {r.badge}
-                </span>
+                {r.affordable ? (
+                  <button
+                    type="button"
+                    onClick={() => onRedeem(r.reward)}
+                    style={{
+                      flex: 'none',
+                      font: `600 12px ${SYS}`,
+                      color: '#fff',
+                      background: '#8FA892',
+                      border: 'none',
+                      padding: '6px 14px',
+                      borderRadius: 999,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Canjear
+                  </button>
+                ) : (
+                  <span style={{ flex: 'none', font: `600 12px ${SYS}`, color: r.badgeColor, background: r.badgeBg, padding: '4px 10px', borderRadius: 999 }}>
+                    {r.badge}
+                  </span>
+                )}
               </div>
             </div>
           ))}
         </div>
+
+        {/* redemption history */}
+        {model.redemptionRows.length > 0 && (
+          <>
+            <div style={{ ...sectionLabel, margin: '18px 0 8px 4px' }}>Canjes</div>
+            <div style={{ ...card, overflow: 'hidden' }}>
+              {model.redemptionRows.map((r, i) => (
+                <div key={i}>
+                  {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 54 }} />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '12px 16px' }}>
+                    <span style={{ fontSize: 21, lineHeight: 1 }}>{r.emoji}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', font: `500 15px ${SYS}`, color: '#2C2C28' }}>{r.text}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: r.color }} />
+                        <span style={{ font: `400 12px ${SYS}`, color: '#A29D93' }}>
+                          {r.whoName} · {r.dateLabel}
+                        </span>
+                      </span>
+                    </span>
+                    <span style={{ flex: 'none', font: `600 12px ${SYS}`, color: '#B8896A' }}>−{r.cost}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* achievements */}

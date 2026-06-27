@@ -11,7 +11,7 @@ import {
   updateDoc,
 } from 'firebase/firestore'
 import { db } from '../firebase'
-import type { Household, HouseholdData } from '../types'
+import type { Household, HouseholdData, Redemption } from '../types'
 import { DEFAULT_COLOR_A, DEFAULT_COLOR_B, defaultRewards, defaultTasks } from './defaults'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789' // no I, L, O, 0, 1
@@ -66,6 +66,7 @@ export async function createHousehold(user: User): Promise<string> {
     tasks: defaultTasks(),
     rewards: defaultRewards(),
     completions: {},
+    redemptions: [],
   }
   const household: Household = {
     ...data,
@@ -145,6 +146,15 @@ export async function updateHousehold(
   patch: Partial<HouseholdData> & { lastEditedBy?: string },
 ): Promise<void> {
   await updateDoc(doc(db, 'households', hid), { ...patch, updatedAt: Date.now() })
+}
+
+/** Append a redemption atomically (arrayUnion avoids losing concurrent redeems). */
+export async function redeemReward(hid: string, redemption: Redemption, by: string): Promise<void> {
+  await updateDoc(doc(db, 'households', hid), {
+    redemptions: arrayUnion(redemption),
+    lastEditedBy: by,
+    updatedAt: Date.now(),
+  })
 }
 
 /** Leave the household by id: drop yourself from members and clear your user link. */

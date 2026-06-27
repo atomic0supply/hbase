@@ -1,7 +1,7 @@
 {
   "name": "reparto-del-hogar",
   "private": true,
-  "version": "0.0.4",
+  "version": "0.0.5",
   "type": "module",
   "description": "Reparto justo de tareas para dos, con marcador y racha. PWA React + Firebase.",
   "scripts": {

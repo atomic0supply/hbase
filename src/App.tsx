@@ -3,9 +3,9 @@ import { useAuth, signOutUser } from './hooks/useAuth'
 import { useHousehold } from './hooks/useHousehold'
 import { computeModel, dayComplete, localKey, toggleCompletion } from './lib/logic'
 import { defaultRewards, defaultTasks } from './lib/defaults'
-import { leaveHouseholdById, refreshInvite, updateHousehold } from './lib/household'
+import { leaveHouseholdById, redeemReward, refreshInvite, updateHousehold } from './lib/household'
 import { celebrate } from './lib/celebrate'
-import type { Reward, RewardDraft, Task } from './types'
+import type { Reward, RewardDraft, Slot, Task } from './types'
 import { Login } from './components/Login'
 import { Pairing } from './components/Pairing'
 import { Splash } from './components/Splash'
@@ -62,8 +62,10 @@ export default function App() {
   const data = household
 
   // ---------- actions ----------
+  const mySlot: Slot = household.memberSlots[user.uid] ?? 'a'
+
   const toggleTask = async (t: Task) => {
-    const { completions, wasComplete, isComplete } = toggleCompletion(data, t, new Date())
+    const { completions, wasComplete, isComplete } = toggleCompletion(data, t, new Date(), mySlot)
     const k = localKey(new Date())
     if (isComplete && !wasComplete && celebratedKey.current !== k) {
       celebratedKey.current = k
@@ -105,6 +107,16 @@ export default function App() {
 
   const addReward = () => setRewardEditing({ id: 'r' + Date.now().toString(36), emoji: '🎁', text: '', cost: 30, _new: true })
 
+  const redeem = async (r: Reward) => {
+    if (model.balance < r.cost) return
+    await redeemReward(
+      hid,
+      { id: 'x' + Date.now().toString(36), rewardId: r.id, emoji: r.emoji, text: r.text, cost: r.cost, by: mySlot, t: Date.now() },
+      user.uid,
+    )
+    celebrate(rootRef.current)
+  }
+
   const inviteUrl = `${window.location.origin}/?join=${household.inviteCode ?? ''}`
 
   return (
@@ -115,7 +127,7 @@ export default function App() {
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 24 }}>
         <div style={{ height: 'env(safe-area-inset-top)' }} />
         {view === 'hoy' && <HoyView model={model} onToggle={toggleTask} />}
-        {view === 'hogar' && <HogarView model={model} onOpenHistory={() => setHistoryOpen(true)} />}
+        {view === 'hogar' && <HogarView model={model} onOpenHistory={() => setHistoryOpen(true)} onRedeem={redeem} />}
         {view === 'organizar' && (
           <OrganizarView
             model={model}

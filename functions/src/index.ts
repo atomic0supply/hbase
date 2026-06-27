@@ -155,6 +155,22 @@ export const onHouseholdChange = onDocumentUpdated(
       })
     }
 
+    // --- reward redeemed: tell the partner ---
+    const beforeRed = new Set((before.redemptions ?? []).map((r) => r.id))
+    const newRedemptions = (after.redemptions ?? []).filter((r) => !beforeRed.has(r.id))
+    if (newRedemptions.length) {
+      const actorSlot = actorUid ? after.memberSlots?.[actorUid] : undefined
+      const actorName = actorSlot ? after.people[actorSlot].name : 'Tu pareja'
+      const recipients = after.members.filter((m) => m !== actorUid)
+      const r = newRedemptions[0]
+      await notifyUsers(recipients, 'partnerCompleted', {
+        title: 'Recompensa canjeada 🎁',
+        body: `${actorName} ha canjeado "${r.emoji} ${r.text}"`,
+        tag: 'reward-redeemed',
+        url: '/',
+      })
+    }
+
     // --- streak milestone ---
     const tz = after.timezone || DEFAULT_TZ
     const ref = refDate(tzParts(new Date(), tz))

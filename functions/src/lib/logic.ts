@@ -63,13 +63,13 @@ export function scheduledFor(data: HouseholdData, d: Date): Task[] {
   return data.tasks.filter((t) => t.freq === 'daily' || (t.freq === 'weekly' && t.day === mi))
 }
 
-export function weekAssign(data: HouseholdData, ref: Date): Record<string, Record<string, Slot>> {
+function assignWeek(data: HouseholdData, ref: Date, la0 = 0, lb0 = 0): { map: Record<string, Record<string, Slot>>; la: number; lb: number } {
   const monday = new Date(ref)
   monday.setUTCHours(12, 0, 0, 0)
   monday.setUTCDate(ref.getUTCDate() - monIndex(ref))
-  let la = 0
-  let lb = 0
-  const out: Record<string, Record<string, Slot>> = {}
+  let la = la0
+  let lb = lb0
+  const map: Record<string, Record<string, Slot>> = {}
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday)
     d.setUTCDate(monday.getUTCDate() + i)
@@ -78,9 +78,9 @@ export function weekAssign(data: HouseholdData, ref: Date): Record<string, Recor
     const rot = sched
       .filter((t) => t.assign === 'rotate')
       .sort((x, y) => y.points - x.points || hash(x.id) - hash(y.id) || (x.id < y.id ? -1 : 1))
-    const map: Record<string, Slot> = {}
+    const day: Record<string, Slot> = {}
     fixed.forEach((t) => {
-      map[t.id] = t.assign as Slot
+      day[t.id] = t.assign as Slot
       if (t.assign === 'a') la += t.points
       else lb += t.points
     })
@@ -89,13 +89,37 @@ export function weekAssign(data: HouseholdData, ref: Date): Record<string, Recor
       if (la < lb) who = 'a'
       else if (lb < la) who = 'b'
       else who = hash(t.id) % 2 === 0 ? 'a' : 'b'
-      map[t.id] = who
+      day[t.id] = who
       if (who === 'a') la += t.points
       else lb += t.points
     })
-    out[localKey(d)] = map
+    map[localKey(d)] = day
   }
-  return out
+  return { map, la, lb }
+}
+
+// Fixed anchor (Mon 2025-01-06) for the carryover — must match the client's CARRY_EPOCH.
+const CARRY_EPOCH = Date.UTC(2025, 0, 6)
+const WEEK_MS = 7 * 86400000
+const CARRY_CAP = 200
+
+export function weekAssign(data: HouseholdData, ref: Date): Record<string, Record<string, Slot>> {
+  const monday = new Date(ref)
+  monday.setUTCHours(12, 0, 0, 0)
+  monday.setUTCDate(ref.getUTCDate() - monIndex(ref))
+  const mondayUTC = Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate())
+  const weeksSinceEpoch = Math.round((mondayUTC - CARRY_EPOCH) / WEEK_MS)
+  const L = Math.max(0, Math.min(weeksSinceEpoch, CARRY_CAP))
+  let la = 0
+  let lb = 0
+  for (let i = L; i >= 1; i--) {
+    const wkMon = new Date(monday)
+    wkMon.setUTCDate(monday.getUTCDate() - 7 * i)
+    const r = assignWeek(data, wkMon, la, lb)
+    la = r.la
+    lb = r.lb
+  }
+  return assignWeek(data, ref, la, lb).map
 }
 
 export function isDone(data: HouseholdData, taskId: string, key: string): boolean {

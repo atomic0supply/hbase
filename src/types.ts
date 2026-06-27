@@ -34,12 +34,25 @@ export interface Completion {
 /** completions[dateKey][taskId] = Completion */
 export type Completions = Record<string, Record<string, Completion>>
 
+/** A claimed reward — spends from the shared points balance. Reward fields are
+ * snapshotted so editing/deleting the reward later never changes the balance. */
+export interface Redemption {
+  id: string
+  rewardId: string
+  emoji: string
+  text: string
+  cost: number
+  by: Slot // who redeemed it
+  t: number // ms epoch
+}
+
 /** The shared, synced state of a household (the "pair"). */
 export interface HouseholdData {
   people: { a: Person; b: Person }
   tasks: Task[]
   rewards: Reward[]
   completions: Completions
+  redemptions: Redemption[]
 }
 
 /** Full Firestore household document. */

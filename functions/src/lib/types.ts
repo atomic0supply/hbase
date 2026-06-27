@@ -28,11 +28,22 @@ export interface Completion {
 }
 export type Completions = Record<string, Record<string, Completion>>
 
+export interface Redemption {
+  id: string
+  rewardId: string
+  emoji: string
+  text: string
+  cost: number
+  by: Slot
+  t: number
+}
+
 export interface HouseholdData {
   people: { a: { name: string; color: string }; b: { name: string; color: string } }
   tasks: Task[]
   rewards: Reward[]
   completions: Completions
+  redemptions?: Redemption[]
 }
 
 export interface Household extends HouseholdData {
