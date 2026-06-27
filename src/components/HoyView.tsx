@@ -1,6 +1,7 @@
 import type { Task } from '../types'
 import type { TaskRow, ViewModel } from '../lib/logic'
 import { card, eyebrow, h1, SYS } from './styles'
+import { Glyph } from './Icon'
 
 function CheckRow({ row, first, onToggle }: { row: TaskRow; first: boolean; onToggle: (t: Task) => void }) {
   return (
@@ -41,7 +42,9 @@ function CheckRow({ row, first, onToggle }: { row: TaskRow; first: boolean; onTo
             </svg>
           )}
         </span>
-        <span style={{ fontSize: 21, lineHeight: 1 }}>{row.emoji}</span>
+        <span style={{ flex: 'none', display: 'flex', width: 24, justifyContent: 'center' }}>
+          <Glyph taskId={row.task.id} value={row.emoji} size={22} color={row.done ? '#B0AB9F' : '#6E6A60'} />
+        </span>
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'block', font: `500 16px/1.25 ${SYS}`, color: row.nameColor, textDecoration: row.deco }}>
             {row.name}
@@ -100,7 +103,15 @@ function PersonSection({
   )
 }
 
-export function HoyView({ model, onToggle }: { model: ViewModel; onToggle: (t: Task) => void }) {
+export function HoyView({
+  model,
+  onToggle,
+  onOpenPicker,
+}: {
+  model: ViewModel
+  onToggle: (t: Task) => void
+  onOpenPicker: () => void
+}) {
   return (
     <div>
       <div style={{ padding: '14px 22px 2px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
@@ -162,6 +173,38 @@ export function HoyView({ model, onToggle }: { model: ViewModel; onToggle: (t: T
 
       <PersonSection color={model.colorA} name={model.nameA} count={model.countA} rows={model.todayA} onToggle={onToggle} />
       <PersonSection color={model.colorB} name={model.nameB} count={model.countB} rows={model.todayB} onToggle={onToggle} />
+
+      {model.extrasToday.length > 0 && (
+        <div style={{ margin: '22px 16px 0' }}>
+          <div style={{ font: `600 13px/1 ${SYS}`, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#6E6A60', margin: '0 0 8px 4px' }}>
+            Extra de hoy
+          </div>
+          <div style={{ ...card, overflow: 'hidden' }}>
+            {model.extrasToday.map((r, i) => (
+              <CheckRow key={r.task.id} row={r} first={i === 0} onToggle={onToggle} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ margin: '14px 16px 0' }}>
+        <button
+          type="button"
+          onClick={onOpenPicker}
+          style={{
+            width: '100%',
+            padding: '13px 16px',
+            borderRadius: 16,
+            border: '1.5px dashed rgba(184,137,106,0.45)',
+            background: 'transparent',
+            color: '#B8896A',
+            font: `600 15px ${SYS}`,
+            cursor: 'pointer',
+          }}
+        >
+          + Registrar otra tarea que hiciste
+        </button>
+      </div>
     </div>
   )
 }

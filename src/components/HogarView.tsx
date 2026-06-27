@@ -2,6 +2,7 @@ import type { Reward } from '../types'
 import type { ViewModel } from '../lib/logic'
 import { Plant } from './Plant'
 import { card, cardLg, eyebrow, h1, sectionLabel, SYS } from './styles'
+import { Glyph } from './Icon'
 
 export function HogarView({
   model,
@@ -87,7 +88,7 @@ export function HogarView({
         {nextReward && (
           <div style={{ ...card, padding: '16px 18px', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 26, lineHeight: 1 }}>{nextReward.emoji}</span>
+              <span style={{ flex: 'none', display: 'flex' }}><Glyph value={nextReward.emoji} size={26} color="#B8896A" /></span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ font: `600 16px ${SYS}`, color: '#2C2C28' }}>{nextReward.text}</div>
                 <div style={{ font: `400 13px ${SYS}`, color: '#9A968C', marginTop: 1 }}>
@@ -114,7 +115,7 @@ export function HogarView({
             <div key={r.reward.id}>
               {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 54 }} />}
               <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 16px' }}>
-                <span style={{ fontSize: 21, lineHeight: 1, opacity: r.opacity }}>{r.emoji}</span>
+                <span style={{ flex: 'none', display: 'flex', opacity: r.opacity }}><Glyph value={r.emoji} size={22} color="#6E6A60" /></span>
                 <span style={{ flex: 1, minWidth: 0, font: `500 16px ${SYS}`, color: r.textColor }}>{r.text}</span>
                 {r.affordable ? (
                   <button
@@ -152,7 +153,7 @@ export function HogarView({
                 <div key={i}>
                   {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 54 }} />}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '12px 16px' }}>
-                    <span style={{ fontSize: 21, lineHeight: 1 }}>{r.emoji}</span>
+                    <span style={{ flex: 'none', display: 'flex' }}><Glyph value={r.emoji} size={21} color="#6E6A60" /></span>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: 'block', font: `500 15px ${SYS}`, color: '#2C2C28' }}>{r.text}</span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>

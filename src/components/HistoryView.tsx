@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import type { HouseholdData } from '../types'
-import { computeHistory, type Period, shiftAnchor } from '../lib/history'
+import { type ChartBar, computeHistory, type Period, shiftAnchor } from '../lib/history'
 import { card, SYS } from './styles'
 import { segGroup, segStyle } from './Sheet'
+import { Glyph } from './Icon'
 
 export function HistoryView({ data, onClose }: { data: HouseholdData; onClose: () => void }) {
   const [period, setPeriod] = useState<Period>('week')
@@ -54,6 +55,19 @@ export function HistoryView({ data, onClose }: { data: HouseholdData; onClose: (
         </div>
       </div>
 
+      {/* stacked bar chart */}
+      {h.countA + h.countB > 0 && (
+        <div style={{ padding: '12px 16px 0' }}>
+          <div style={{ ...card, padding: '14px 14px 10px' }}>
+            <BarChart bars={h.chart} colorA={h.colorA} colorB={h.colorB} period={period} />
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 10 }}>
+              <Legend color={h.colorA} name={h.nameA} />
+              <Legend color={h.colorB} name={h.nameB} />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* daily log */}
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '16px 16px', paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)' }}>
         {h.days.length === 0 ? (
@@ -71,7 +85,9 @@ export function HistoryView({ data, onClose }: { data: HouseholdData; onClose: (
                   <div key={it.key}>
                     {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 52 }} />}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px' }}>
-                      <span style={{ fontSize: 20, lineHeight: 1, width: 22, textAlign: 'center' }}>{it.emoji}</span>
+                      <span style={{ flex: 'none', display: 'flex', width: 22, justifyContent: 'center' }}>
+                        <Glyph taskId={it.taskId} value={it.emoji} size={21} color="#6E6A60" />
+                      </span>
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <span style={{ display: 'block', font: `500 15px/1.25 ${SYS}`, color: '#2C2C28' }}>{it.name}</span>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
@@ -108,6 +124,40 @@ function SummaryCell({ color, name, count, points }: { color: string; name: stri
       <div style={{ font: `400 12px ${SYS}`, color: '#A9A49A', marginTop: 1 }}>
         {points === 1 ? 'punto' : 'puntos'} · {count} {count === 1 ? 'tarea' : 'tareas'}
       </div>
+    </div>
+  )
+}
+
+function Legend({ color, name }: { color: string; name: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ width: 9, height: 9, borderRadius: 3, background: color }} />
+      <span style={{ font: `500 12px ${SYS}`, color: '#6E6A60' }}>{name}</span>
+    </span>
+  )
+}
+
+function BarChart({ bars, colorA, colorB, period }: { bars: ChartBar[]; colorA: string; colorB: string; period: Period }) {
+  const max = Math.max(1, ...bars.map((b) => b.a + b.b))
+  const H = 76
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: period === 'week' ? 8 : 3, height: H + 16 }}>
+      {bars.map((b, i) => {
+        const aH = b.a > 0 ? Math.max(3, (b.a / max) * H) : 0
+        const bH = b.b > 0 ? Math.max(3, (b.b / max) * H) : 0
+        const showLabel = period === 'week' || i === 0 || Number(b.label) % 5 === 0
+        return (
+          <div key={i} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+            <div style={{ height: H, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', width: period === 'week' ? 26 : '78%' }}>
+              <div style={{ height: aH + bH, borderRadius: '4px 4px 0 0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {bH > 0 && <div style={{ height: bH, background: colorB }} />}
+                {aH > 0 && <div style={{ height: aH, background: colorA }} />}
+              </div>
+            </div>
+            <div style={{ font: `500 10px ${SYS}`, color: '#A9A49A', height: 12 }}>{showLabel ? b.label : ''}</div>
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import type { ViewModel } from '../lib/logic'
 import { card, sectionLabel, SYS } from './styles'
 import { QrImage } from './QrImage'
 import { NotificationsCard } from './NotificationsCard'
+import { Glyph } from './Icon'
 
 interface Props {
   model: ViewModel
@@ -190,7 +191,9 @@ export function OrganizarView(props: Props) {
               <div key={t.task.id}>
                 {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 55 }} />}
                 <div style={listRowBtn as React.CSSProperties}>
-                  <span style={{ fontSize: 21, lineHeight: 1, width: 24, textAlign: 'center' }}>{t.emoji}</span>
+                  <span style={{ flex: 'none', display: 'flex', width: 24, justifyContent: 'center' }}>
+                    <Glyph taskId={t.task.id} value={t.emoji} size={22} color="#6E6A60" />
+                  </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', font: `500 16px/1.25 ${SYS}`, color: '#2C2C28' }}>{t.name}</span>
                     <span style={{ display: 'block', font: `400 13px/1.3 ${SYS}`, color: '#A29D93', marginTop: 1 }}>{t.metaSub}</span>
@@ -220,7 +223,9 @@ export function OrganizarView(props: Props) {
               <div key={t.task.id}>
                 {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 55 }} />}
                 <div style={listRowBtn as React.CSSProperties}>
-                  <span style={{ fontSize: 21, lineHeight: 1, width: 24, textAlign: 'center', opacity: 0.85 }}>{t.emoji}</span>
+                  <span style={{ flex: 'none', display: 'flex', width: 24, justifyContent: 'center', opacity: 0.85 }}>
+                    <Glyph taskId={t.task.id} value={t.emoji} size={22} color="#8A8578" />
+                  </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', font: `500 16px/1.25 ${SYS}`, color: '#6E6A60' }}>{t.name}</span>
                     <span style={{ display: 'block', font: `400 13px/1.3 ${SYS}`, color: '#A29D93', marginTop: 1 }}>{t.metaSub}</span>
@@ -248,7 +253,9 @@ export function OrganizarView(props: Props) {
             <div key={r.id}>
               {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 55 }} />}
               <button type="button" onClick={() => props.onEditReward(r)} style={listRowBtn}>
-                <span style={{ fontSize: 21, lineHeight: 1, width: 24, textAlign: 'center' }}>{r.emoji}</span>
+                <span style={{ flex: 'none', display: 'flex', width: 24, justifyContent: 'center' }}>
+                  <Glyph value={r.emoji} size={22} color="#6E6A60" />
+                </span>
                 <span style={{ flex: 1, minWidth: 0, font: `500 16px ${SYS}`, color: '#2C2C28' }}>{r.text}</span>
                 <span style={{ flex: 'none', font: `600 13px ${SYS}`, color: '#B8896A' }}>{r.cost} pts</span>
                 <span style={{ flex: 'none', font: `400 20px ${SYS}`, color: '#C9C4B8' }}>›</span>

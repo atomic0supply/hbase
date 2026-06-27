@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { Reward, RewardDraft } from '../types'
-import { REMOJIS } from '../lib/defaults'
 import { SYS } from './styles'
 import { deleteBtn, emojiPickStyle, Sheet, stepperBtn, subLabel } from './Sheet'
+import { Icon, resolveIcon, REWARD_ICON_CHOICES } from './Icon'
 
 interface Props {
   initial: RewardDraft
@@ -15,10 +15,12 @@ export function RewardEditSheet({ initial, onClose, onSave, onDelete }: Props) {
   const [e, setE] = useState<RewardDraft>(initial)
   const set = <K extends keyof RewardDraft>(k: K, v: RewardDraft[K]) => setE((prev) => ({ ...prev, [k]: v }))
 
+  const current = resolveIcon(e.emoji) ?? 'gift'
+
   const save = () => {
     onSave({
       id: e.id,
-      emoji: e.emoji || '🎁',
+      emoji: e.emoji || 'gift',
       text: (e.text || '').trim() || 'Recompensa',
       cost: e.cost,
     })
@@ -26,11 +28,13 @@ export function RewardEditSheet({ initial, onClose, onSave, onDelete }: Props) {
 
   return (
     <Sheet title={e._new ? 'Nueva recompensa' : 'Editar recompensa'} onClose={onClose} onSave={save}>
-      <div style={{ textAlign: 'center', padding: '6px 0 2px', fontSize: 50, lineHeight: 1 }}>{e.emoji}</div>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 2px' }}>
+        <Icon name={current} size={46} color="#B8896A" />
+      </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', padding: '10px 2px 4px' }}>
-        {REMOJIS.map((ch) => (
-          <button key={ch} type="button" onClick={() => set('emoji', ch)} style={emojiPickStyle(e.emoji === ch)}>
-            {ch}
+        {REWARD_ICON_CHOICES.map((name) => (
+          <button key={name} type="button" onClick={() => set('emoji', name)} style={emojiPickStyle(current === name)}>
+            <Icon name={name} size={22} color="#6E6A60" />
           </button>
         ))}
       </div>

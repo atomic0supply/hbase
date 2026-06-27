@@ -6,6 +6,7 @@ export type Period = 'week' | 'month'
 
 export interface HistoryItem {
   key: string
+  taskId: string
   emoji: string
   name: string
   who: Slot
@@ -22,12 +23,19 @@ export interface HistoryDay {
   items: HistoryItem[]
 }
 
+export interface ChartBar {
+  label: string
+  a: number // tasks done by person A that day
+  b: number
+}
+
 export interface History {
   label: string
   isCurrent: boolean
   canPrev: boolean
   canNext: boolean
   days: HistoryDay[]
+  chart: ChartBar[]
   totalA: number
   totalB: number
   countA: number
@@ -119,6 +127,7 @@ export function computeHistory(data: HouseholdData, period: Period, anchor: Date
         }
         items.push({
           key: `${dateKey}:${taskId}`,
+          taskId,
           emoji: task ? task.emoji : '✅',
           name: task ? task.name : 'Tarea',
           who,
@@ -134,12 +143,29 @@ export function computeHistory(data: HouseholdData, period: Period, anchor: Date
       days.push({ dateKey, dateLabel, items })
     })
 
+  // stacked bar chart: one bar per day of the period (chronological), counts by slot
+  const WK = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+  const chart: ChartBar[] = []
+  const cur = new Date(start)
+  while (cur <= end) {
+    const dayComp = data.completions[localKey(cur)] || {}
+    let a = 0
+    let b = 0
+    Object.keys(dayComp).forEach((tid) => {
+      if (dayComp[tid].p === 'a') a += 1
+      else b += 1
+    })
+    chart.push({ label: period === 'week' ? WK[monIndex(cur)] : String(cur.getDate()), a, b })
+    cur.setDate(cur.getDate() + 1)
+  }
+
   return {
     label: periodLabel(period, start, end, isCurrent),
     isCurrent,
     canPrev: true,
     canNext: !isCurrent && start < now,
     days,
+    chart,
     totalA,
     totalB,
     countA,

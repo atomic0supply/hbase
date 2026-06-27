@@ -14,6 +14,7 @@ import { HoyView } from './components/HoyView'
 import { HogarView } from './components/HogarView'
 import { OrganizarView } from './components/OrganizarView'
 import { HistoryView } from './components/HistoryView'
+import { TaskPickerSheet } from './components/TaskPickerSheet'
 import { RewardEditSheet } from './components/RewardEditSheet'
 
 const joinFromUrl = new URLSearchParams(window.location.search).get('join') ?? undefined
@@ -25,6 +26,7 @@ export default function App() {
   // ---- local UI state ----
   const [view, setView] = useState<View>('hoy')
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [rewardEditing, setRewardEditing] = useState<RewardDraft | null>(null)
   const [, setTick] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -105,7 +107,7 @@ export default function App() {
 
   const restore = () => updateHousehold(hid, { tasks: defaultTasks(), rewards: defaultRewards() })
 
-  const addReward = () => setRewardEditing({ id: 'r' + Date.now().toString(36), emoji: '🎁', text: '', cost: 30, _new: true })
+  const addReward = () => setRewardEditing({ id: 'r' + Date.now().toString(36), emoji: 'gift', text: '', cost: 30, _new: true })
 
   const redeem = async (r: Reward) => {
     if (model.balance < r.cost) return
@@ -126,7 +128,7 @@ export default function App() {
     >
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 24 }}>
         <div style={{ height: 'env(safe-area-inset-top)' }} />
-        {view === 'hoy' && <HoyView model={model} onToggle={toggleTask} />}
+        {view === 'hoy' && <HoyView model={model} onToggle={toggleTask} onOpenPicker={() => setPickerOpen(true)} />}
         {view === 'hogar' && <HogarView model={model} onOpenHistory={() => setHistoryOpen(true)} onRedeem={redeem} />}
         {view === 'organizar' && (
           <OrganizarView
@@ -153,6 +155,10 @@ export default function App() {
       <TabBar view={view} onChange={setView} />
 
       {historyOpen && <HistoryView data={household} onClose={() => setHistoryOpen(false)} />}
+
+      {pickerOpen && (
+        <TaskPickerSheet doneIds={model.todayDoneIds} onPick={toggleTask} onClose={() => setPickerOpen(false)} />
+      )}
 
       {rewardEditing && (
         <RewardEditSheet

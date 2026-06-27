@@ -327,6 +327,32 @@ export function computeModel(data: HouseholdData, now: Date) {
   const done = sched.filter((t) => isDone(data, t.id, todayKey)).length
   const pct = total ? done / total : 0
 
+  // extra tasks logged today that are NOT scheduled today (ad-hoc "I did this too")
+  const schedIds = new Set(sched.map((t) => t.id))
+  const todayComp = data.completions[todayKey] || {}
+  const todayDoneIds = Object.keys(todayComp)
+  const extrasToday: TaskRow[] = todayDoneIds
+    .filter((tid) => !schedIds.has(tid))
+    .map((tid) => {
+      const t = resolveTask(data.tasks, tid)
+      if (!t) return null
+      const who = todayComp[tid].p
+      const color = who === 'a' ? colorA : colorB
+      return {
+        task: t,
+        emoji: t.emoji,
+        name: t.name,
+        sub: `${who === 'a' ? nameA : nameB} · ${t.points}${t.points === 1 ? ' punto' : ' puntos'}`,
+        pointsBadge: `+${t.points}`,
+        done: true,
+        bg: color,
+        borderColor: color,
+        nameColor: '#B0AB9F',
+        deco: 'line-through',
+      } as TaskRow
+    })
+    .filter((r): r is TaskRow => r !== null)
+
   // cumulative scoreboard — lifetime points per person, never reset
   let scoreA = 0
   let scoreB = 0
@@ -456,6 +482,8 @@ export function computeModel(data: HouseholdData, now: Date) {
     leaderB: scoreB > scoreA && scoreB > 0,
     todayA,
     todayB,
+    extrasToday,
+    todayDoneIds,
     countA: `· ${todayA.length}${todayA.length === 1 ? ' tarea' : ' tareas'}`,
     countB: `· ${todayB.length}${todayB.length === 1 ? ' tarea' : ' tareas'}`,
     plant: plantInfo(data, now),

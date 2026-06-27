@@ -60,9 +60,9 @@ export function resolveTask(activeTasks: Task[], id: string): Task | undefined {
 
 export function defaultRewards(): Reward[] {
   return [
-    { id: 'r1', emoji: '☕', text: 'Desayuno en la cama', cost: 15 },
-    { id: 'r2', emoji: '🎬', text: 'Noche de peli, elige quien gana', cost: 25 },
-    { id: 'r3', emoji: '💆', text: 'Masaje del que va perdiendo', cost: 35 },
-    { id: 'r4', emoji: '🍽️', text: 'Cena fuera', cost: 50 },
+    { id: 'r1', emoji: 'coffee', text: 'Desayuno en la cama', cost: 15 },
+    { id: 'r2', emoji: 'film', text: 'Noche de peli, elige quien gana', cost: 25 },
+    { id: 'r3', emoji: 'spa', text: 'Masaje del que va perdiendo', cost: 35 },
+    { id: 'r4', emoji: 'dinner', text: 'Cena fuera', cost: 50 },
   ]
 }
