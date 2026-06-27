@@ -8,10 +8,12 @@ export function HogarView({
   model,
   onOpenHistory,
   onRedeem,
+  onUse,
 }: {
   model: ViewModel
   onOpenHistory: () => void
   onRedeem: (r: Reward) => void
+  onUse: (redemptionId: string) => void
 }) {
   const { plant, nextReward } = model
   return (
@@ -84,7 +86,7 @@ export function HogarView({
 
       {/* rewards */}
       <div style={{ margin: '18px 16px 0' }}>
-        <div style={sectionLabel}>Recompensas · saldo {model.balance} pts</div>
+        <div style={sectionLabel}>Recompensas · tu saldo {model.balance} pts</div>
         {nextReward && (
           <div style={{ ...card, padding: '16px 18px', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -144,15 +146,48 @@ export function HogarView({
           ))}
         </div>
 
+        {/* your inventory ("lista de uso") */}
+        {model.myInventory.length > 0 && (
+          <>
+            <div style={{ ...sectionLabel, margin: '18px 0 8px 4px' }}>Tu lista de uso</div>
+            <div style={{ ...card, overflow: 'hidden' }}>
+              {model.myInventory.map((g, i) => (
+                <div key={g.rewardId}>
+                  {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 54 }} />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '12px 16px' }}>
+                    <span style={{ flex: 'none', display: 'flex' }}><Glyph value={g.emoji} size={22} color="#6E6A60" /></span>
+                    <span style={{ flex: 1, minWidth: 0, font: `500 16px ${SYS}`, color: '#2C2C28' }}>
+                      {g.text}
+                      {g.count > 1 && <span style={{ font: `600 13px ${SYS}`, color: '#B8896A' }}> ×{g.count}</span>}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onUse(g.oldestId)}
+                      style={{ flex: 'none', font: `600 12px ${SYS}`, color: '#B8896A', background: 'rgba(184,137,106,0.12)', border: 'none', padding: '6px 14px', borderRadius: 999, cursor: 'pointer' }}
+                    >
+                      Usar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {model.partnerUnusedCount > 0 && (
+              <div style={{ font: `400 12px ${SYS}`, color: '#B3AEA3', margin: '8px 0 0 4px' }}>
+                Tu pareja tiene {model.partnerUnusedCount} sin usar.
+              </div>
+            )}
+          </>
+        )}
+
         {/* redemption history */}
         {model.redemptionRows.length > 0 && (
           <>
-            <div style={{ ...sectionLabel, margin: '18px 0 8px 4px' }}>Canjes</div>
+            <div style={{ ...sectionLabel, margin: '18px 0 8px 4px' }}>Historial de canjes</div>
             <div style={{ ...card, overflow: 'hidden' }}>
               {model.redemptionRows.map((r, i) => (
                 <div key={i}>
                   {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 54 }} />}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '12px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '12px 16px', opacity: r.used ? 0.6 : 1 }}>
                     <span style={{ flex: 'none', display: 'flex' }}><Glyph value={r.emoji} size={21} color="#6E6A60" /></span>
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ display: 'block', font: `500 15px ${SYS}`, color: '#2C2C28' }}>{r.text}</span>
@@ -160,6 +195,7 @@ export function HogarView({
                         <span style={{ width: 7, height: 7, borderRadius: '50%', background: r.color }} />
                         <span style={{ font: `400 12px ${SYS}`, color: '#A29D93' }}>
                           {r.whoName} · {r.dateLabel}
+                          {r.used ? ' · usada' : ''}
                         </span>
                       </span>
                     </span>

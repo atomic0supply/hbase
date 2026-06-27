@@ -273,6 +273,17 @@ export interface RedemptionRow {
   color: string
   cost: number
   dateLabel: string
+  used: boolean
+}
+
+/** A group of unused inventory items of the same reward (held in someone's lista de uso). */
+export interface InventoryGroup {
+  rewardId: string
+  emoji: string
+  text: string
+  cost: number
+  count: number
+  oldestId: string // the item consumed first when "using"
 }
 
 export interface Medal {
@@ -290,7 +301,7 @@ export interface AllTaskRow {
   metaSub: string
 }
 
-export function computeModel(data: HouseholdData, now: Date) {
+export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a') {
   const todayKey = localKey(now)
   const P = data.people
   const nameA = P.a.name
@@ -367,10 +378,13 @@ export function computeModel(data: HouseholdData, now: Date) {
   })
   const totalEarned = scoreA + scoreB
   const totalPoints = totalEarned // alias kept for back-compat
-  // shared spendable balance = everything earned minus everything redeemed
+  // per-person spendable balance = own earned points minus own redemptions
   const redemptions = data.redemptions ?? []
-  const totalSpent = redemptions.reduce((s, r) => s + r.cost, 0)
-  const balance = totalEarned - totalSpent
+  const spentA = redemptions.filter((r) => r.by === 'a').reduce((s, r) => s + r.cost, 0)
+  const spentB = redemptions.filter((r) => r.by === 'b').reduce((s, r) => s + r.cost, 0)
+  const balanceA = scoreA - spentA
+  const balanceB = scoreB - spentB
+  const balance = viewer === 'a' ? balanceA : balanceB // the current user's spendable
 
   // cooperative streak (whole house done)
   let streak = 0
@@ -432,7 +446,19 @@ export function computeModel(data: HouseholdData, now: Date) {
       color: r.by === 'a' ? colorA : colorB,
       cost: r.cost,
       dateLabel: new Date(r.t).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', ''),
+      used: !!r.used,
     }))
+
+  // the viewer's "lista de uso": unused items they hold, grouped by reward
+  const myUnused = redemptions.filter((r) => r.by === viewer && !r.used).sort((a, b) => a.t - b.t)
+  const invMap = new Map<string, InventoryGroup>()
+  myUnused.forEach((r) => {
+    const g = invMap.get(r.rewardId)
+    if (g) g.count += 1
+    else invMap.set(r.rewardId, { rewardId: r.rewardId, emoji: r.emoji, text: r.text, cost: r.cost, count: 1, oldestId: r.id })
+  })
+  const myInventory: InventoryGroup[] = Array.from(invMap.values())
+  const partnerUnusedCount = redemptions.filter((r) => r.by !== viewer && !r.used).length
 
   // achievements
   const st = computeStats(data, now)
@@ -476,8 +502,11 @@ export function computeModel(data: HouseholdData, now: Date) {
     scoreB,
     totalPoints,
     totalEarned,
-    totalSpent,
+    viewer,
+    viewerName: viewer === 'a' ? nameA : nameB,
     balance,
+    balanceA,
+    balanceB,
     leaderA: scoreA > scoreB && scoreA > 0,
     leaderB: scoreB > scoreA && scoreB > 0,
     todayA,
@@ -492,6 +521,8 @@ export function computeModel(data: HouseholdData, now: Date) {
     nextPct: nextReward ? `${Math.min(100, Math.round((Math.max(0, balance) / nextReward.cost) * 100))}%` : '0%',
     rewardRows,
     redemptionRows,
+    myInventory,
+    partnerUnusedCount,
     rewardEdits,
     medals,
     medalCount,

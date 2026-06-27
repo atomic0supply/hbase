@@ -34,16 +34,19 @@ export interface Completion {
 /** completions[dateKey][taskId] = Completion */
 export type Completions = Record<string, Record<string, Completion>>
 
-/** A claimed reward — spends from the shared points balance. Reward fields are
- * snapshotted so editing/deleting the reward later never changes the balance. */
+/** A claimed reward held in a person's "lista de uso" (inventory). Redeeming spends
+ * the redeemer's own points; the item is kept until they choose to use it. Reward
+ * fields are snapshotted so editing/deleting the reward later never changes anything. */
 export interface Redemption {
   id: string
   rewardId: string
   emoji: string
   text: string
   cost: number
-  by: Slot // who redeemed it
-  t: number // ms epoch
+  by: Slot // who redeemed it (and whose points were spent)
+  t: number // ms epoch when redeemed
+  used?: boolean // consumed from the inventory
+  usedAt?: number // ms epoch when used
 }
 
 /** The shared, synced state of a household (the "pair"). */

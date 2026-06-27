@@ -36,6 +36,8 @@ export interface Redemption {
   cost: number
   by: Slot
   t: number
+  used?: boolean
+  usedAt?: number
 }
 
 export interface HouseholdData {

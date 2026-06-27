@@ -49,7 +49,10 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hid])
 
-  const model = useMemo(() => (household ? computeModel(household, now) : null), [household, now])
+  const model = useMemo(
+    () => (household && user ? computeModel(household, now, household.memberSlots[user.uid] ?? 'a') : null),
+    [household, now, user],
+  )
 
   // ---------- routing ----------
   if (authLoading) return <Splash />
@@ -109,14 +112,23 @@ export default function App() {
 
   const addReward = () => setRewardEditing({ id: 'r' + Date.now().toString(36), emoji: 'gift', text: '', cost: 30, _new: true })
 
+  // redeem: spend the current user's own points and add the reward to their lista de uso
   const redeem = async (r: Reward) => {
     if (model.balance < r.cost) return
     await redeemReward(
       hid,
-      { id: 'x' + Date.now().toString(36), rewardId: r.id, emoji: r.emoji, text: r.text, cost: r.cost, by: mySlot, t: Date.now() },
+      { id: 'x' + Date.now().toString(36), rewardId: r.id, emoji: r.emoji, text: r.text, cost: r.cost, by: mySlot, t: Date.now(), used: false },
       user.uid,
     )
     celebrate(rootRef.current)
+  }
+
+  // use one held item from the lista de uso (no point cost)
+  const useItem = async (redemptionId: string) => {
+    const redemptions = (data.redemptions ?? []).map((x) =>
+      x.id === redemptionId ? { ...x, used: true, usedAt: Date.now() } : x,
+    )
+    await updateHousehold(hid, { redemptions })
   }
 
   const inviteUrl = `${window.location.origin}/?join=${household.inviteCode ?? ''}`
@@ -129,7 +141,9 @@ export default function App() {
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 24 }}>
         <div style={{ height: 'env(safe-area-inset-top)' }} />
         {view === 'hoy' && <HoyView model={model} onToggle={toggleTask} onOpenPicker={() => setPickerOpen(true)} />}
-        {view === 'hogar' && <HogarView model={model} onOpenHistory={() => setHistoryOpen(true)} onRedeem={redeem} />}
+        {view === 'hogar' && (
+          <HogarView model={model} onOpenHistory={() => setHistoryOpen(true)} onRedeem={redeem} onUse={useItem} />
+        )}
         {view === 'organizar' && (
           <OrganizarView
             model={model}
