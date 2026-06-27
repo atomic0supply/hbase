@@ -13,6 +13,7 @@ import { TabBar, type View } from './components/TabBar'
 import { HoyView } from './components/HoyView'
 import { HogarView } from './components/HogarView'
 import { OrganizarView } from './components/OrganizarView'
+import { HistoryView } from './components/HistoryView'
 import { RewardEditSheet } from './components/RewardEditSheet'
 
 const joinFromUrl = new URLSearchParams(window.location.search).get('join') ?? undefined
@@ -23,6 +24,7 @@ export default function App() {
 
   // ---- local UI state ----
   const [view, setView] = useState<View>('hoy')
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [rewardEditing, setRewardEditing] = useState<RewardDraft | null>(null)
   const [, setTick] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -113,7 +115,7 @@ export default function App() {
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 24 }}>
         <div style={{ height: 'env(safe-area-inset-top)' }} />
         {view === 'hoy' && <HoyView model={model} onToggle={toggleTask} />}
-        {view === 'hogar' && <HogarView model={model} />}
+        {view === 'hogar' && <HogarView model={model} onOpenHistory={() => setHistoryOpen(true)} />}
         {view === 'organizar' && (
           <OrganizarView
             model={model}
@@ -137,6 +139,8 @@ export default function App() {
       </div>
 
       <TabBar view={view} onChange={setView} />
+
+      {historyOpen && <HistoryView data={household} onClose={() => setHistoryOpen(false)} />}
 
       {rewardEditing && (
         <RewardEditSheet

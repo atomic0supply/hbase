@@ -2,7 +2,7 @@ import type { ViewModel } from '../lib/logic'
 import { Plant } from './Plant'
 import { card, cardLg, eyebrow, h1, sectionLabel, SYS } from './styles'
 
-export function HogarView({ model }: { model: ViewModel }) {
+export function HogarView({ model, onOpenHistory }: { model: ViewModel; onOpenHistory: () => void }) {
   const { plant, nextReward } = model
   return (
     <div>
@@ -48,6 +48,28 @@ export function HogarView({ model }: { model: ViewModel }) {
           <div style={{ width: 1, background: 'rgba(0,0,0,0.06)' }} />
           <ScoreCell leader={model.leaderB} color={model.colorB} name={model.nameB} score={model.scoreB} />
         </div>
+        <button
+          type="button"
+          onClick={onOpenHistory}
+          style={{
+            width: '100%',
+            marginTop: 10,
+            padding: '13px 16px',
+            borderRadius: 16,
+            border: 'none',
+            background: '#FFFFFF',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+            color: '#6E6A60',
+            font: `600 15px ${SYS}`,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
+          🗂️ Ver historial de tareas <span style={{ color: '#C9C4B8' }}>›</span>
+        </button>
       </div>
 
       {/* rewards */}
