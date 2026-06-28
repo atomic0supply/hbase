@@ -70,7 +70,7 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
         )}
       </div>
       <div style={{ padding: '16px 18px', textAlign: 'center', font: `400 13px ${SYS}`, color: 'rgba(255,255,255,0.7)' }}>
-        Apunta al QR que muestra tu pareja
+        Apunta al QR que muestra otro miembro
       </div>
     </div>
   )

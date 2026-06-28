@@ -1,7 +1,8 @@
 import type { Task } from '../types'
-import type { TaskRow, ViewModel } from '../lib/logic'
+import type { MemberVM, TaskRow, ViewModel } from '../lib/logic'
 import { card, eyebrow, h1, SYS } from './styles'
 import { Glyph } from './Icon'
+import { Avatar } from './Avatar'
 
 function CheckRow({ row, first, onToggle }: { row: TaskRow; first: boolean; onToggle: (t: Task) => void }) {
   return (
@@ -68,27 +69,16 @@ function CheckRow({ row, first, onToggle }: { row: TaskRow; first: boolean; onTo
   )
 }
 
-function PersonSection({
-  color,
-  name,
-  count,
-  rows,
-  onToggle,
-}: {
-  color: string
-  name: string
-  count: string
-  rows: TaskRow[]
-  onToggle: (t: Task) => void
-}) {
+function PersonSection({ member, onToggle }: { member: MemberVM; onToggle: (t: Task) => void }) {
+  const rows = member.today
   return (
     <div style={{ margin: '22px 16px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 8px 4px' }}>
-        <span style={{ width: 9, height: 9, borderRadius: '50%', background: color, display: 'inline-block' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '0 0 8px 4px' }}>
+        <Avatar name={member.name} color={member.color} photo={member.photo} size={22} />
         <span style={{ font: `600 13px/1 ${SYS}`, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#6E6A60' }}>
-          {name}
+          {member.name}
         </span>
-        <span style={{ font: `500 12px ${SYS}`, color: '#B3AEA3' }}>{count}</span>
+        <span style={{ font: `500 12px ${SYS}`, color: '#B3AEA3' }}>{member.count}</span>
       </div>
       <div style={{ ...card, overflow: 'hidden' }}>
         {rows.length > 0 ? (
@@ -128,7 +118,7 @@ export function HoyView({
             borderRadius: 999,
           }}
         >
-          🔥 {model.streak} juntos
+          🔥 {model.streak} en racha
         </span>
       </div>
 
@@ -171,8 +161,9 @@ export function HoyView({
         </div>
       </div>
 
-      <PersonSection color={model.colorA} name={model.nameA} count={model.countA} rows={model.todayA} onToggle={onToggle} />
-      <PersonSection color={model.colorB} name={model.nameB} count={model.countB} rows={model.todayB} onToggle={onToggle} />
+      {model.members.map((m) => (
+        <PersonSection key={m.slot} member={m} onToggle={onToggle} />
+      ))}
 
       {model.extrasToday.length > 0 && (
         <div style={{ margin: '22px 16px 0' }}>

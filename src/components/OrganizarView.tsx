@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { User } from 'firebase/auth'
 import type { Household, NotifPrefs, Reward, Task } from '../types'
-import type { ViewModel } from '../lib/logic'
+import type { MemberVM, ViewModel } from '../lib/logic'
+import { COLOR_PALETTE, MAX_MEMBERS } from '../lib/defaults'
 import { card, sectionLabel, SYS } from './styles'
 import { QrImage } from './QrImage'
 import { NotificationsCard } from './NotificationsCard'
 import { Glyph } from './Icon'
+import { Avatar } from './Avatar'
 
 interface Props {
   model: ViewModel
@@ -14,8 +16,8 @@ interface Props {
   inviteUrl: string
   pushEnabled: boolean
   notifPrefs?: NotifPrefs
-  onNameA: (v: string) => void
-  onNameB: (v: string) => void
+  onSetName: (slot: string, v: string) => void
+  onSetColor: (slot: string, color: string) => void
   onAddTask: (t: Task) => void
   onRemoveTask: (id: string) => void
   onAddReward: () => void
@@ -28,7 +30,7 @@ interface Props {
 
 export function OrganizarView(props: Props) {
   const { model, user, household, inviteUrl } = props
-  const paired = household.members.length >= 2
+  const full = household.members.length >= MAX_MEMBERS
   const code = household.inviteCode
 
   const [confirmRestore, setConfirmRestore] = useState(false)
@@ -83,33 +85,30 @@ export function OrganizarView(props: Props) {
         </h1>
       </div>
 
-      {/* who you are */}
+      {/* members */}
       <div style={{ margin: '20px 16px 0' }}>
-        <div style={sectionLabel}>Quiénes sois</div>
+        <div style={sectionLabel}>Miembros del hogar ({model.members.length})</div>
         <div style={{ ...card, overflow: 'hidden' }}>
-          <NameRow color={model.colorA} value={model.nameA} placeholder="Persona A" hint="salvia" onInput={props.onNameA} />
-          <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 42 }} />
-          <NameRow color={model.colorB} value={model.nameB} placeholder="Persona B" hint="terracota" onInput={props.onNameB} />
+          {model.members.map((m, i) => (
+            <div key={m.slot}>
+              {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 16 }} />}
+              <NameRow member={m} onName={(v) => props.onSetName(m.slot, v)} onColor={(c) => props.onSetColor(m.slot, c)} />
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* pairing / account */}
+      {/* invite + account */}
       <div style={{ margin: '22px 16px 0' }}>
-        <div style={sectionLabel}>Vuestra pareja</div>
+        <div style={sectionLabel}>Invitar al hogar</div>
         <div style={{ ...card, padding: '16px 18px' }}>
-          {paired ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 22 }}>💞</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ font: `600 16px ${SYS}`, color: '#2C2C28' }}>
-                  {model.nameA} y {model.nameB}
-                </div>
-                <div style={{ font: `400 13px ${SYS}`, color: '#9A968C', marginTop: 1 }}>Emparejados ✓ · todo se sincroniza</div>
-              </div>
+          {full ? (
+            <div style={{ textAlign: 'center', font: `400 14px ${SYS}`, color: '#9A968C' }}>
+              Hogar completo · {MAX_MEMBERS} miembros
             </div>
           ) : (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ font: `600 16px ${SYS}`, color: '#2C2C28' }}>Invita a tu pareja</div>
+              <div style={{ font: `600 16px ${SYS}`, color: '#2C2C28' }}>Invita a un compañero</div>
               <div style={{ font: `400 13px ${SYS}`, color: '#9A968C', margin: '3px 0 14px' }}>
                 Que escanee el QR o introduzca el código
               </div>
@@ -287,7 +286,7 @@ export function OrganizarView(props: Props) {
       </div>
       <div style={{ textAlign: 'center', padding: '6px 24px 2px' }}>
         <button type="button" onClick={props.onLeave} style={{ background: 'none', border: 'none', font: `500 13px ${SYS}`, color: '#B3AEA3', cursor: 'pointer' }}>
-          Desemparejar este dispositivo
+          Salir del hogar
         </button>
       </div>
       <div style={{ textAlign: 'center', padding: '2px 24px 8px', font: `400 12px ${SYS}`, color: '#B3AEA3' }}>
@@ -297,29 +296,36 @@ export function OrganizarView(props: Props) {
   )
 }
 
-function NameRow({
-  color,
-  value,
-  placeholder,
-  hint,
-  onInput,
-}: {
-  color: string
-  value: string
-  placeholder: string
-  hint: string
-  onInput: (v: string) => void
-}) {
+function NameRow({ member, onName, onColor }: { member: MemberVM; onName: (v: string) => void; onColor: (c: string) => void }) {
+  const [pick, setPick] = useState(false)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 16px' }}>
-      <span style={{ width: 13, height: 13, borderRadius: '50%', background: color, flex: 'none' }} />
-      <input
-        value={value}
-        onChange={(e) => onInput(e.target.value)}
-        placeholder={placeholder}
-        style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: `500 16px ${SYS}`, color: '#2C2C28' }}
-      />
-      <span style={{ font: `500 12px ${SYS}`, color: '#B3AEA3' }}>{hint}</span>
+    <div style={{ padding: '11px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
+        <button type="button" onClick={() => setPick((p) => !p)} aria-label="Cambiar color" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', flex: 'none' }}>
+          <Avatar name={member.name} color={member.color} photo={member.photo} size={26} />
+        </button>
+        <input
+          value={member.name}
+          onChange={(e) => onName(e.target.value)}
+          placeholder="Nombre"
+          style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: `500 16px ${SYS}`, color: '#2C2C28' }}
+        />
+      </div>
+      {pick && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, paddingLeft: 39, flexWrap: 'wrap' }}>
+          {COLOR_PALETTE.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => {
+                onColor(c)
+                setPick(false)
+              }}
+              style={{ width: 26, height: 26, borderRadius: '50%', background: c, border: member.color === c ? '2.5px solid #2C2C28' : '2.5px solid transparent', cursor: 'pointer' }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

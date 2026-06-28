@@ -5,6 +5,7 @@ import { computeModel, dayComplete, localKey, toggleCompletion } from './lib/log
 import { defaultRewards, defaultTasks } from './lib/defaults'
 import { leaveHouseholdById, redeemReward, refreshInvite, updateHousehold } from './lib/household'
 import { celebrate } from './lib/celebrate'
+import { haptics } from './lib/haptics'
 import type { Reward, RewardDraft, Slot, Task } from './types'
 import { Login } from './components/Login'
 import { Pairing } from './components/Pairing'
@@ -70,6 +71,7 @@ export default function App() {
   const mySlot: Slot = household.memberSlots[user.uid] ?? 'a'
 
   const toggleTask = async (t: Task) => {
+    haptics.tap()
     const { completions, wasComplete, isComplete } = toggleCompletion(data, t, new Date(), mySlot)
     const k = localKey(new Date())
     if (isComplete && !wasComplete && celebratedKey.current !== k) {
@@ -103,8 +105,12 @@ export default function App() {
     await updateHousehold(hid, { rewards: data.rewards.filter((r) => r.id !== id) })
   }
 
-  const setName = async (which: 'a' | 'b', value: string) => {
-    const people = { ...data.people, [which]: { ...data.people[which], name: value } }
+  const setName = async (slot: string, value: string) => {
+    const people = { ...data.people, [slot]: { ...data.people[slot], name: value } }
+    await updateHousehold(hid, { people })
+  }
+  const setColor = async (slot: string, color: string) => {
+    const people = { ...data.people, [slot]: { ...data.people[slot], color } }
     await updateHousehold(hid, { people })
   }
 
@@ -120,11 +126,13 @@ export default function App() {
       { id: 'x' + Date.now().toString(36), rewardId: r.id, emoji: r.emoji, text: r.text, cost: r.cost, by: mySlot, t: Date.now(), used: false },
       user.uid,
     )
+    haptics.success()
     celebrate(rootRef.current)
   }
 
   // use one held item from the lista de uso (no point cost)
   const useItem = async (redemptionId: string) => {
+    haptics.tap()
     const redemptions = (data.redemptions ?? []).map((x) =>
       x.id === redemptionId ? { ...x, used: true, usedAt: Date.now() } : x,
     )
@@ -150,8 +158,8 @@ export default function App() {
             user={user}
             household={household}
             inviteUrl={inviteUrl}
-            onNameA={(v) => setName('a', v)}
-            onNameB={(v) => setName('b', v)}
+            onSetName={setName}
+            onSetColor={setColor}
             onAddTask={addCatalogTask}
             onRemoveTask={removeTask}
             onAddReward={addReward}

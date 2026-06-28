@@ -6,8 +6,38 @@ export const ZONES = ['Cocina', 'Baño', 'Salón', 'Dormitorio', 'Terraza', 'Gen
 export const EMOJIS = ['🍽️', '🧹', '🛏️', '🗑️', '🌿', '🚿', '🧽', '🛒', '🧺', '🪟', '🛋️', '🧴', '🛌', '🧼', '🚽', '🪣', '🍳', '🪴']
 export const REMOJIS = ['🍽️', '☕', '🎬', '💆', '🍷', '🍕', '🛁', '🎮', '🏖️', '💐', '🍫', '🎁']
 
-export const DEFAULT_COLOR_A = '#8FA892' // salvia
-export const DEFAULT_COLOR_B = '#B8896A' // terracota
+// Up to N flatmates per household. Slots are letter ids in this order; 'a'/'b' stay
+// first so all existing 2-person data keeps working with no migration.
+export const MAX_MEMBERS = 6
+export const SLOT_IDS = ['a', 'b', 'c', 'd', 'e', 'f'] as const
+
+// Per-member colors, assigned by slot index. First two match the original palette.
+export const COLOR_PALETTE = [
+  '#8FA892', // a · salvia
+  '#B8896A', // b · terracota
+  '#7C9CB0', // c · azul niebla
+  '#C2A35A', // d · mostaza suave
+  '#9B82B0', // e · lavanda
+  '#C97B6E', // f · coral tierra
+]
+
+export const DEFAULT_COLOR_A = COLOR_PALETTE[0] // salvia
+export const DEFAULT_COLOR_B = COLOR_PALETTE[1] // terracota
+
+export function slotColor(slot: string): string {
+  const i = SLOT_IDS.indexOf(slot as (typeof SLOT_IDS)[number])
+  return i >= 0 ? COLOR_PALETTE[i] : COLOR_PALETTE[0]
+}
+
+/** First slot letter not in `used`, or undefined if the household is full. */
+export function nextFreeSlot(used: string[]): string | undefined {
+  return SLOT_IDS.find((s) => !used.includes(s))
+}
+
+/** Active member slots = slots that have a person entry, in letter order. */
+export function activeSlots(people: Record<string, unknown>): string[] {
+  return SLOT_IDS.filter((s) => people[s] != null)
+}
 
 // Day index: 0=lunes … 6=domingo. All catalog tasks balance automatically (assign: 'rotate').
 // The catalog is the full, preprogrammed list; a household's active tasks are a subset of it.

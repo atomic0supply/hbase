@@ -73,8 +73,8 @@ export function Pairing({ user, prefillCode }: { user: User; prefillCode?: strin
         </h1>
         <p style={{ font: `400 15px/1.45 ${SYS}`, color: '#9A968C', margin: '10px 0 30px', maxWidth: 300 }}>
           {mode === 'choose'
-            ? 'Crea vuestro hogar o únete al que ya ha creado tu pareja.'
-            : 'Escanea el QR de tu pareja o escribe el código de 6 caracteres.'}
+            ? 'Crea un hogar o únete al que ya ha creado un compañero.'
+            : 'Escanea el QR de un compañero o escribe el código de 6 caracteres.'}
         </p>
 
         {mode === 'choose' ? (

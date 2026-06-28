@@ -3,6 +3,7 @@ import type { ViewModel } from '../lib/logic'
 import { Plant } from './Plant'
 import { card, cardLg, eyebrow, h1, sectionLabel, SYS } from './styles'
 import { Glyph } from './Icon'
+import { Avatar } from './Avatar'
 
 export function HogarView({
   model,
@@ -19,7 +20,7 @@ export function HogarView({
   return (
     <div>
       <div style={{ padding: '14px 22px 2px' }}>
-        <div style={eyebrow}>Vuestro hogar</div>
+        <div style={eyebrow}>El hogar</div>
         <h1 style={h1}>Hogar</h1>
       </div>
 
@@ -52,13 +53,28 @@ export function HogarView({
         </div>
       </div>
 
-      {/* scoreboard */}
+      {/* scoreboard — podium ranked by points */}
       <div style={{ margin: '18px 16px 0' }}>
         <div style={sectionLabel}>Marcador total</div>
-        <div style={{ ...card, display: 'flex', overflow: 'hidden' }}>
-          <ScoreCell leader={model.leaderA} color={model.colorA} name={model.nameA} score={model.scoreA} />
-          <div style={{ width: 1, background: 'rgba(0,0,0,0.06)' }} />
-          <ScoreCell leader={model.leaderB} color={model.colorB} name={model.nameB} score={model.scoreB} />
+        <div style={{ ...card, overflow: 'hidden' }}>
+          {[...model.members]
+            .sort((a, b) => b.score - a.score)
+            .map((m, i) => (
+              <div key={m.slot}>
+                {i > 0 && <div style={{ height: 1, background: 'rgba(0,0,0,0.07)', marginLeft: 54 }} />}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' }}>
+                  <span style={{ width: 22, textAlign: 'center', fontSize: i < 3 && m.score > 0 ? 18 : 14, font: i < 3 && m.score > 0 ? undefined : `600 13px ${SYS}`, color: '#9A968C' }}>
+                    {m.score > 0 && i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}
+                  </span>
+                  <Avatar name={m.name} color={m.color} photo={m.photo} size={30} />
+                  <span style={{ flex: 1, minWidth: 0, font: `600 16px ${SYS}`, color: '#2C2C28', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {m.name}
+                  </span>
+                  <span style={{ font: `700 20px ${SYS}`, color: m.color }}>{m.score}</span>
+                  <span style={{ font: `400 12px ${SYS}`, color: '#A9A49A' }}>pts</span>
+                </div>
+              </div>
+            ))}
         </div>
         <button
           type="button"
@@ -171,9 +187,9 @@ export function HogarView({
                 </div>
               ))}
             </div>
-            {model.partnerUnusedCount > 0 && (
+            {model.othersUnusedCount > 0 && (
               <div style={{ font: `400 12px ${SYS}`, color: '#B3AEA3', margin: '8px 0 0 4px' }}>
-                Tu pareja tiene {model.partnerUnusedCount} sin usar.
+                Otros tienen {model.othersUnusedCount} sin usar.
               </div>
             )}
           </>
@@ -234,18 +250,3 @@ export function HogarView({
   )
 }
 
-function ScoreCell({ leader, color, name, score }: { leader: boolean; color: string; name: string; score: number }) {
-  return (
-    <div style={{ flex: 1, padding: '16px 10px 18px', textAlign: 'center', position: 'relative' }}>
-      {leader && (
-        <div style={{ position: 'absolute', top: 7, left: '50%', transform: 'translateX(-50%)', fontSize: 16 }}>👑</div>
-      )}
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 15 }}>
-        <span style={{ width: 9, height: 9, borderRadius: '50%', background: color }} />
-        <span style={{ font: `600 14px ${SYS}`, color: '#2C2C28' }}>{name}</span>
-      </div>
-      <div style={{ font: `700 32px/1 ${SYS}`, color, marginTop: 8 }}>{score}</div>
-      <div style={{ font: `400 12px ${SYS}`, color: '#A9A49A', marginTop: 2 }}>puntos</div>
-    </div>
-  )
-}

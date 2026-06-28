@@ -106,12 +106,12 @@ export function NotificationsCard({
               </Row>
               <Divider />
               <Row>
-                <span style={{ flex: 1, font: `500 16px ${SYS}`, color: '#2C2C28' }}>Tareas nuevas de tu pareja</span>
+                <span style={{ flex: 1, font: `500 16px ${SYS}`, color: '#2C2C28' }}>Tareas nuevas de un compañero</span>
                 <Toggle value={prefs.taskAssigned} onChange={(v) => update({ taskAssigned: v })} />
               </Row>
               <Divider />
               <Row>
-                <span style={{ flex: 1, font: `500 16px ${SYS}`, color: '#2C2C28' }}>Cuando tu pareja completa una tarea</span>
+                <span style={{ flex: 1, font: `500 16px ${SYS}`, color: '#2C2C28' }}>Cuando un compañero completa una tarea</span>
                 <Toggle value={prefs.partnerCompleted} onChange={(v) => update({ partnerCompleted: v })} />
               </Row>
             </>

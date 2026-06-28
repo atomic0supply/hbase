@@ -1,10 +1,11 @@
-export type Slot = 'a' | 'b'
+export type Slot = string // member slot id: letter sequence 'a','b','c',… (see SLOT_IDS)
 export type Freq = 'daily' | 'weekly'
-export type Assign = 'rotate' | 'a' | 'b'
+export type Assign = 'rotate' | string // 'rotate' or a fixed slot id
 
 export interface Person {
   name: string
   color: string
+  photo?: string | null // Google profile photo URL, for avatars
 }
 
 export interface Task {
@@ -51,7 +52,7 @@ export interface Redemption {
 
 /** The shared, synced state of a household (the "pair"). */
 export interface HouseholdData {
-  people: { a: Person; b: Person }
+  people: Record<string, Person> // keyed by slot id ('a','b','c',…)
   tasks: Task[]
   rewards: Reward[]
   completions: Completions

@@ -1,25 +1,26 @@
 {
   "name": "reparto-del-hogar",
   "private": true,
-  "version": "0.0.7",
+  "version": "0.0.8",
   "type": "module",
-  "description": "Reparto justo de tareas para dos, con marcador y racha. PWA React + Firebase.",
+  "description": "Reparto justo de tareas del hogar entre compañeros de piso, con marcador y racha. PWA React + Firebase.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
     "deploy": "npm run build && firebase deploy",
     "deploy:hosting": "npm run build && firebase deploy --only hosting",
     "deploy:rules": "firebase deploy --only firestore:rules"
   },
   "dependencies": {
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "firebase": "^11.1.0",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@zxing/browser": "^0.1.5",
-    "@zxing/library": "^0.21.3"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.5",
@@ -28,6 +29,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.3",
     "vite": "^6.0.7",
-    "vite-plugin-pwa": "^0.21.1"
+    "vite-plugin-pwa": "^0.21.1",
+    "vitest": "^2.1.9"
   }
 }

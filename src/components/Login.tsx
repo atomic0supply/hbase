@@ -35,7 +35,7 @@ export function Login() {
         Reparto del Hogar
       </h1>
       <p style={{ font: `400 15px/1.45 ${SYS}`, color: '#9A968C', margin: '10px 0 32px', maxWidth: 300 }}>
-        Reparto justo de tareas para dos, con marcador, racha y recompensas. Sincronizado entre tú y tu pareja.
+        Reparto justo de tareas del hogar, con marcador, racha y recompensas. Sincronizado entre los miembros del piso.
       </p>
 
       <button
@@ -67,7 +67,7 @@ export function Login() {
       {err && <div style={{ font: `500 13px ${SYS}`, color: '#D05A5A', marginTop: 16 }}>{err}</div>}
 
       <div style={{ font: `400 12px ${SYS}`, color: '#B3AEA3', marginTop: 28, maxWidth: 280 }}>
-        Tus datos se guardan en tu cuenta y se comparten solo con tu pareja.
+        Tus datos se guardan en tu cuenta y se comparten solo con tu hogar.
       </div>
     </div>
   )

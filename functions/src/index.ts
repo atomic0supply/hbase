@@ -112,7 +112,7 @@ export const onHouseholdChange = onDocumentUpdated(
       if (added.length) {
         const t = added[0]
         const actorSlot = actor ? after.memberSlots?.[actor] : undefined
-        const actorName = actorSlot ? after.people[actorSlot].name : 'Tu pareja'
+        const actorName = actorSlot ? after.people[actorSlot].name : 'Un compañero'
         const recipients = after.members.filter((m) => m !== actor)
         await notifyUsers(recipients, 'taskAssigned', {
           title: 'Nueva tarea',
@@ -136,7 +136,7 @@ export const onHouseholdChange = onDocumentUpdated(
     }
     if (newlyDone.length) {
       const actorSlot = actorUid ? after.memberSlots?.[actorUid] : undefined
-      const actorName = actorSlot ? after.people[actorSlot].name : 'Tu pareja'
+      const actorName = actorSlot ? after.people[actorSlot].name : 'Un compañero'
       const recipients = after.members.filter((m) => m !== actorUid)
       let body: string
       let tag = 'task-done'
@@ -160,7 +160,7 @@ export const onHouseholdChange = onDocumentUpdated(
     const newRedemptions = (after.redemptions ?? []).filter((r) => !beforeRed.has(r.id))
     if (newRedemptions.length) {
       const actorSlot = actorUid ? after.memberSlots?.[actorUid] : undefined
-      const actorName = actorSlot ? after.people[actorSlot].name : 'Tu pareja'
+      const actorName = actorSlot ? after.people[actorSlot].name : 'Un compañero'
       const recipients = after.members.filter((m) => m !== actorUid)
       const r = newRedemptions[0]
       await notifyUsers(recipients, 'partnerCompleted', {

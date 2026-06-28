@@ -2,7 +2,7 @@
 // The Cloud Functions runtime is UTC; we build reference Dates from a user's local
 // Y/M/D (via Intl + their timezone) so all the local-method helpers below produce
 // keys that match what the client wrote.
-import type { HouseholdData, Slot, Task } from './types'
+import { activeSlots, type HouseholdData, type Slot, type Task } from './types'
 
 export interface TzParts {
   year: number
@@ -63,39 +63,43 @@ export function scheduledFor(data: HouseholdData, d: Date): Task[] {
   return data.tasks.filter((t) => t.freq === 'daily' || (t.freq === 'weekly' && t.day === mi))
 }
 
-function assignWeek(data: HouseholdData, ref: Date, la0 = 0, lb0 = 0): { map: Record<string, Record<string, Slot>>; la: number; lb: number } {
+// N-way least-loaded assignment (mirrors client src/lib/logic.ts).
+function assignWeek(
+  data: HouseholdData,
+  ref: Date,
+  loads0: Record<string, number> = {},
+): { map: Record<string, Record<string, Slot>>; loads: Record<string, number> } {
   const monday = new Date(ref)
   monday.setUTCHours(12, 0, 0, 0)
   monday.setUTCDate(ref.getUTCDate() - monIndex(ref))
-  let la = la0
-  let lb = lb0
+  const slots = activeSlots(data.people)
+  const loads: Record<string, number> = {}
+  slots.forEach((s) => (loads[s] = loads0[s] ?? 0))
   const map: Record<string, Record<string, Slot>> = {}
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday)
     d.setUTCDate(monday.getUTCDate() + i)
     const sched = scheduledFor(data, d)
-    const fixed = sched.filter((t) => t.assign === 'a' || t.assign === 'b')
+    const fixed = sched.filter((t) => t.assign !== 'rotate' && slots.includes(t.assign))
     const rot = sched
-      .filter((t) => t.assign === 'rotate')
+      .filter((t) => t.assign === 'rotate' || !slots.includes(t.assign))
       .sort((x, y) => y.points - x.points || hash(x.id) - hash(y.id) || (x.id < y.id ? -1 : 1))
     const day: Record<string, Slot> = {}
     fixed.forEach((t) => {
-      day[t.id] = t.assign as Slot
-      if (t.assign === 'a') la += t.points
-      else lb += t.points
+      day[t.id] = t.assign
+      loads[t.assign] += t.points
     })
     rot.forEach((t) => {
-      let who: Slot
-      if (la < lb) who = 'a'
-      else if (lb < la) who = 'b'
-      else who = hash(t.id) % 2 === 0 ? 'a' : 'b'
+      if (!slots.length) return
+      const min = Math.min(...slots.map((s) => loads[s]))
+      const tied = slots.filter((s) => loads[s] === min)
+      const who = tied[hash(t.id) % tied.length]
       day[t.id] = who
-      if (who === 'a') la += t.points
-      else lb += t.points
+      loads[who] += t.points
     })
     map[localKey(d)] = day
   }
-  return { map, la, lb }
+  return { map, loads }
 }
 
 // Fixed anchor (Mon 2025-01-06) for the carryover — must match the client's CARRY_EPOCH.
@@ -110,16 +114,13 @@ export function weekAssign(data: HouseholdData, ref: Date): Record<string, Recor
   const mondayUTC = Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate())
   const weeksSinceEpoch = Math.round((mondayUTC - CARRY_EPOCH) / WEEK_MS)
   const L = Math.max(0, Math.min(weeksSinceEpoch, CARRY_CAP))
-  let la = 0
-  let lb = 0
+  let loads: Record<string, number> = {}
   for (let i = L; i >= 1; i--) {
     const wkMon = new Date(monday)
     wkMon.setUTCDate(monday.getUTCDate() - 7 * i)
-    const r = assignWeek(data, wkMon, la, lb)
-    la = r.la
-    lb = r.lb
+    loads = assignWeek(data, wkMon, loads).loads
   }
-  return assignWeek(data, ref, la, lb).map
+  return assignWeek(data, ref, loads).map
 }
 
 export function isDone(data: HouseholdData, taskId: string, key: string): boolean {

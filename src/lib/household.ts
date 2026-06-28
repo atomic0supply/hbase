@@ -2,17 +2,19 @@ import type { User } from 'firebase/auth'
 import {
   arrayUnion,
   collection,
-  deleteDoc,
   deleteField,
   doc,
   getDoc,
   onSnapshot,
+  runTransaction,
   setDoc,
   updateDoc,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import type { Household, HouseholdData, Redemption } from '../types'
-import { DEFAULT_COLOR_A, DEFAULT_COLOR_B, defaultRewards, defaultTasks } from './defaults'
+import { defaultRewards, defaultTasks, nextFreeSlot, slotColor } from './defaults'
+
+const firstName = (u: User) => u.displayName?.split(' ')[0] || 'Compañero'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789' // no I, L, O, 0, 1
 
@@ -53,15 +55,14 @@ export function subscribeHousehold(
   )
 }
 
-/** Create a household with the signed-in user as person A, plus an invite code for the partner. */
+/** Create a household with the signed-in user as the first member, plus an invite code. */
 export async function createHousehold(user: User): Promise<string> {
   const hid = doc(collection(db, 'households')).id
   const code = genInviteCode()
   const now = Date.now()
   const data: HouseholdData = {
     people: {
-      a: { name: user.displayName?.split(' ')[0] || 'Yo', color: DEFAULT_COLOR_A },
-      b: { name: 'Pareja', color: DEFAULT_COLOR_B },
+      a: { name: firstName(user), color: slotColor('a'), photo: user.photoURL ?? null },
     },
     tasks: defaultTasks(),
     rewards: defaultRewards(),
@@ -80,7 +81,6 @@ export async function createHousehold(user: User): Promise<string> {
   await setDoc(doc(db, 'households', hid), household)
   await setDoc(doc(db, 'invites', code), {
     householdId: hid,
-    slot: 'b',
     createdBy: user.uid,
     createdAt: now,
   })
@@ -94,26 +94,37 @@ export async function createHousehold(user: User): Promise<string> {
 
 export class JoinError extends Error {}
 
-/** Join an existing household using an invite code. */
+/** Join an existing household using an invite code. Runs in a transaction so two
+ *  flatmates can't claim the same slot letter at once. The invite stays usable
+ *  until the household is full. */
 export async function joinHousehold(user: User, rawCode: string): Promise<string> {
   const code = rawCode.trim().toUpperCase()
   if (code.length !== 6) throw new JoinError('El código debe tener 6 caracteres.')
 
   const inviteSnap = await getDoc(doc(db, 'invites', code))
-  if (!inviteSnap.exists()) throw new JoinError('Código no válido o ya usado.')
+  if (!inviteSnap.exists()) throw new JoinError('Código no válido.')
   const hid = inviteSnap.data().householdId as string
+  const hhRef = doc(db, 'households', hid)
 
   try {
-    await updateDoc(doc(db, 'households', hid), {
-      members: arrayUnion(user.uid),
-      [`memberSlots.${user.uid}`]: 'b',
-      'people.b.name': user.displayName?.split(' ')[0] || 'Pareja',
-      inviteCode: null,
-      joinCode: code,
-      updatedAt: Date.now(),
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(hhRef)
+      if (!snap.exists()) throw new JoinError('El hogar ya no existe.')
+      const hh = snap.data() as Household
+      if (hh.members.includes(user.uid)) return // already a member
+      const slot = nextFreeSlot(Object.values(hh.memberSlots))
+      if (!slot) throw new JoinError('El hogar ya está completo.')
+      tx.update(hhRef, {
+        members: arrayUnion(user.uid),
+        [`memberSlots.${user.uid}`]: slot,
+        [`people.${slot}`]: { name: firstName(user), color: slotColor(slot), photo: user.photoURL ?? null },
+        joinCode: code, // transient handshake for the security rule
+        updatedAt: Date.now(),
+      })
     })
-  } catch {
-    throw new JoinError('No se pudo unir: el hogar ya está completo o el código ha caducado.')
+  } catch (e) {
+    if (e instanceof JoinError) throw e
+    throw new JoinError('No se pudo unir. Inténtalo de nuevo.')
   }
 
   await setDoc(
@@ -121,9 +132,8 @@ export async function joinHousehold(user: User, rawCode: string): Promise<string
     { householdId: hid, displayName: user.displayName ?? null, photoURL: user.photoURL ?? null },
     { merge: true },
   )
-  // Consume the invite and clean up the transient joinCode (now allowed as a member).
-  await deleteDoc(doc(db, 'invites', code)).catch(() => {})
-  await updateDoc(doc(db, 'households', hid), { joinCode: deleteField() }).catch(() => {})
+  // Clear the transient joinCode now that we're a member (invite stays for more joiners).
+  await updateDoc(hhRef, { joinCode: deleteField() }).catch(() => {})
   return hid
 }
 
@@ -132,7 +142,6 @@ export async function refreshInvite(user: User, hid: string): Promise<string> {
   const code = genInviteCode()
   await setDoc(doc(db, 'invites', code), {
     householdId: hid,
-    slot: 'b',
     createdBy: user.uid,
     createdAt: Date.now(),
   })
@@ -157,11 +166,15 @@ export async function redeemReward(hid: string, redemption: Redemption, by: stri
   })
 }
 
-/** Leave the household by id: drop yourself from members and clear your user link. */
+/** Leave the household by id: drop yourself (member, slot and person) and clear your link.
+ *  Past completions/redemptions keep your slot id (orphaned, guarded in computeModel). */
 export async function leaveHouseholdById(user: User, hid: string, hh: Household): Promise<void> {
+  const slot = hh.memberSlots[user.uid]
   const members = hh.members.filter((m) => m !== user.uid)
   const memberSlots = { ...hh.memberSlots }
   delete memberSlots[user.uid]
-  await updateDoc(doc(db, 'households', hid), { members, memberSlots, updatedAt: Date.now() })
+  const people = { ...hh.people }
+  if (slot) delete people[slot]
+  await updateDoc(doc(db, 'households', hid), { members, memberSlots, people, updatedAt: Date.now() })
   await setDoc(doc(db, 'users', user.uid), { householdId: null }, { merge: true })
 }

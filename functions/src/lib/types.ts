@@ -1,8 +1,8 @@
 // Mirrors the relevant parts of the client's src/types.ts. Kept in sync manually —
 // these are pure data shapes for the chore logic, which changes rarely.
-export type Slot = 'a' | 'b'
+export type Slot = string // member slot id ('a','b','c',…)
 export type Freq = 'daily' | 'weekly'
-export type Assign = 'rotate' | 'a' | 'b'
+export type Assign = 'rotate' | string
 
 export interface Task {
   id: string
@@ -40,8 +40,19 @@ export interface Redemption {
   usedAt?: number
 }
 
+export interface Person {
+  name: string
+  color: string
+  photo?: string | null
+}
+
+export const SLOT_IDS = ['a', 'b', 'c', 'd', 'e', 'f']
+export function activeSlots(people: Record<string, unknown>): string[] {
+  return SLOT_IDS.filter((s) => people[s] != null)
+}
+
 export interface HouseholdData {
-  people: { a: { name: string; color: string }; b: { name: string; color: string } }
+  people: Record<string, Person>
   tasks: Task[]
   rewards: Reward[]
   completions: Completions

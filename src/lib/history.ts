@@ -1,5 +1,5 @@
 import type { HouseholdData, Slot } from '../types'
-import { resolveTask } from './defaults'
+import { activeSlots, resolveTask } from './defaults'
 import { localKey, monIndex, parseKey } from './logic'
 
 export type Period = 'week' | 'month'
@@ -25,8 +25,15 @@ export interface HistoryDay {
 
 export interface ChartBar {
   label: string
-  a: number // tasks done by person A that day
-  b: number
+  counts: Record<string, number> // tasks done per member slot that day
+}
+
+export interface HistoryMember {
+  slot: string
+  name: string
+  color: string
+  total: number // points in the period
+  count: number // tasks in the period
 }
 
 export interface History {
@@ -36,14 +43,7 @@ export interface History {
   canNext: boolean
   days: HistoryDay[]
   chart: ChartBar[]
-  totalA: number
-  totalB: number
-  countA: number
-  countB: number
-  nameA: string
-  nameB: string
-  colorA: string
-  colorB: string
+  members: HistoryMember[]
 }
 
 function startOfWeek(d: Date): Date {
@@ -100,10 +100,15 @@ export function computeHistory(data: HouseholdData, period: Period, anchor: Date
   const isCurrent = now >= start && now <= end
 
   const P = data.people
-  let totalA = 0
-  let totalB = 0
-  let countA = 0
-  let countB = 0
+  const slots = activeSlots(P)
+  const pname = (s: string) => P[s]?.name ?? '—'
+  const pcolor = (s: string) => P[s]?.color ?? '#9A968C'
+  const total: Record<string, number> = {}
+  const count: Record<string, number> = {}
+  slots.forEach((s) => {
+    total[s] = 0
+    count[s] = 0
+  })
 
   const days: HistoryDay[] = []
   Object.keys(data.completions)
@@ -118,12 +123,9 @@ export function computeHistory(data: HouseholdData, period: Period, anchor: Date
         const task = resolveTask(data.tasks, taskId)
         const who = c.p
         const points = task ? task.points : 0
-        if (who === 'a') {
-          totalA += points
-          countA += 1
-        } else {
-          totalB += points
-          countB += 1
+        if (who in total) {
+          total[who] += points
+          count[who] += 1
         }
         items.push({
           key: `${dateKey}:${taskId}`,
@@ -131,8 +133,8 @@ export function computeHistory(data: HouseholdData, period: Period, anchor: Date
           emoji: task ? task.emoji : '✅',
           name: task ? task.name : 'Tarea',
           who,
-          whoName: who === 'a' ? P.a.name : P.b.name,
-          color: who === 'a' ? P.a.color : P.b.color,
+          whoName: pname(who),
+          color: pcolor(who),
           points,
           timeLabel: c.t ? new Date(c.t).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '',
           t: c.t || 0,
@@ -149,13 +151,13 @@ export function computeHistory(data: HouseholdData, period: Period, anchor: Date
   const cur = new Date(start)
   while (cur <= end) {
     const dayComp = data.completions[localKey(cur)] || {}
-    let a = 0
-    let b = 0
+    const counts: Record<string, number> = {}
+    slots.forEach((s) => (counts[s] = 0))
     Object.keys(dayComp).forEach((tid) => {
-      if (dayComp[tid].p === 'a') a += 1
-      else b += 1
+      const s = dayComp[tid].p
+      if (s in counts) counts[s] += 1
     })
-    chart.push({ label: period === 'week' ? WK[monIndex(cur)] : String(cur.getDate()), a, b })
+    chart.push({ label: period === 'week' ? WK[monIndex(cur)] : String(cur.getDate()), counts })
     cur.setDate(cur.getDate() + 1)
   }
 
@@ -166,13 +168,6 @@ export function computeHistory(data: HouseholdData, period: Period, anchor: Date
     canNext: !isCurrent && start < now,
     days,
     chart,
-    totalA,
-    totalB,
-    countA,
-    countB,
-    nameA: P.a.name,
-    nameB: P.b.name,
-    colorA: P.a.color,
-    colorB: P.b.color,
+    members: slots.map((s) => ({ slot: s, name: pname(s), color: pcolor(s), total: total[s], count: count[s] })),
   }
 }

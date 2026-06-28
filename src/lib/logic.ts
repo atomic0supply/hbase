@@ -1,5 +1,5 @@
 import type { Completion, HouseholdData, Reward, Slot, Task } from '../types'
-import { CATALOG_TASKS, DAY_LONG, resolveTask } from './defaults'
+import { activeSlots, CATALOG_TASKS, DAY_LONG, resolveTask } from './defaults'
 
 // ---------- date / key helpers (ported 1:1 from the prototype) ----------
 export function localKey(d: Date): string {
@@ -37,40 +37,46 @@ export function scheduledFor(data: HouseholdData, d: Date): Task[] {
 }
 
 /** Internal: assign one week's tasks starting from accumulated loads; returns the
- *  assignment map plus the resulting loads so they can carry into the next week. */
-function assignWeek(data: HouseholdData, ref: Date, la0 = 0, lb0 = 0): { map: Record<string, Record<string, Slot>>; la: number; lb: number } {
+ *  assignment map plus the resulting loads so they can carry into the next week.
+ *  N-way: each rotating task goes to the least-loaded active slot (deterministic
+ *  tiebreak by hash over the tied slots in letter order). */
+function assignWeek(
+  data: HouseholdData,
+  ref: Date,
+  loads0: Record<string, number> = {},
+): { map: Record<string, Record<string, Slot>>; loads: Record<string, number> } {
   const monday = new Date(ref)
   monday.setHours(0, 0, 0, 0)
   monday.setDate(ref.getDate() - monIndex(ref))
-  let la = la0
-  let lb = lb0
+  const slots = activeSlots(data.people)
+  const loads: Record<string, number> = {}
+  slots.forEach((s) => (loads[s] = loads0[s] ?? 0))
   const map: Record<string, Record<string, Slot>> = {}
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
     const sched = scheduledFor(data, d)
-    const fixed = sched.filter((t) => t.assign === 'a' || t.assign === 'b')
+    const fixed = sched.filter((t) => t.assign !== 'rotate' && slots.includes(t.assign))
+    // 'rotate' OR a fixed assignment to a slot that no longer exists → balanced
     const rot = sched
-      .filter((t) => t.assign === 'rotate')
+      .filter((t) => t.assign === 'rotate' || !slots.includes(t.assign))
       .sort((x, y) => y.points - x.points || hash(x.id) - hash(y.id) || (x.id < y.id ? -1 : 1))
     const day: Record<string, Slot> = {}
     fixed.forEach((t) => {
-      day[t.id] = t.assign as Slot
-      if (t.assign === 'a') la += t.points
-      else lb += t.points
+      day[t.id] = t.assign
+      loads[t.assign] += t.points
     })
     rot.forEach((t) => {
-      let who: Slot
-      if (la < lb) who = 'a'
-      else if (lb < la) who = 'b'
-      else who = hash(t.id) % 2 === 0 ? 'a' : 'b'
+      if (!slots.length) return
+      const min = Math.min(...slots.map((s) => loads[s]))
+      const tied = slots.filter((s) => loads[s] === min) // already in letter order
+      const who = tied[hash(t.id) % tied.length]
       day[t.id] = who
-      if (who === 'a') la += t.points
-      else lb += t.points
+      loads[who] += t.points
     })
     map[localKey(d)] = day
   }
-  return { map, la, lb }
+  return { map, loads }
 }
 
 // Fixed anchor (Mon 2025-01-06) for the carryover simulation. Anchoring to a fixed
@@ -90,16 +96,13 @@ export function weekAssign(data: HouseholdData, ref: Date): Record<string, Recor
   const mondayUTC = Date.UTC(monday.getFullYear(), monday.getMonth(), monday.getDate())
   const weeksSinceEpoch = Math.round((mondayUTC - CARRY_EPOCH) / WEEK_MS)
   const L = Math.max(0, Math.min(weeksSinceEpoch, CARRY_CAP))
-  let la = 0
-  let lb = 0
+  let loads: Record<string, number> = {}
   for (let i = L; i >= 1; i--) {
     const wkMon = new Date(monday)
     wkMon.setDate(monday.getDate() - 7 * i)
-    const r = assignWeek(data, wkMon, la, lb)
-    la = r.la
-    lb = r.lb
+    loads = assignWeek(data, wkMon, loads).loads
   }
-  return assignWeek(data, ref, la, lb).map
+  return assignWeek(data, ref, loads).map
 }
 
 export function isDone(data: HouseholdData, taskId: string, key: string): boolean {
@@ -301,22 +304,35 @@ export interface AllTaskRow {
   metaSub: string
 }
 
+/** One household member, derived for the views (replaces the old flat A/B fields). */
+export interface MemberVM {
+  slot: string
+  name: string
+  color: string
+  photo?: string | null
+  score: number
+  balance: number
+  spent: number
+  today: TaskRow[]
+  count: string
+  isLeader: boolean
+}
+
 export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a') {
   const todayKey = localKey(now)
   const P = data.people
-  const nameA = P.a.name
-  const nameB = P.b.name
-  const colorA = P.a.color
-  const colorB = P.b.color
+  const slots = activeSlots(P)
+  const pname = (s: string) => P[s]?.name ?? '—'
+  const pcolor = (s: string) => P[s]?.color ?? '#9A968C'
   const wa = weekAssign(data, now)
 
   let dateLabel = now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
   dateLabel = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)
 
-  const assigneeToday = (t: Task): Slot => (wa[todayKey] && wa[todayKey][t.id]) || 'a'
+  const assigneeToday = (t: Task): Slot => (wa[todayKey] && wa[todayKey][t.id]) || slots[0] || 'a'
   const mapRow = (t: Task): TaskRow => {
     const done = isDone(data, t.id, todayKey)
-    const color = assigneeToday(t) === 'a' ? colorA : colorB
+    const color = pcolor(assigneeToday(t))
     return {
       task: t,
       emoji: t.emoji,
@@ -332,8 +348,12 @@ export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a')
   }
 
   const sched = scheduledFor(data, now)
-  const todayA = sched.filter((t) => assigneeToday(t) === 'a').map(mapRow)
-  const todayB = sched.filter((t) => assigneeToday(t) === 'b').map(mapRow)
+  const todayBySlot: Record<string, TaskRow[]> = {}
+  slots.forEach((s) => (todayBySlot[s] = []))
+  sched.forEach((t) => {
+    const s = assigneeToday(t)
+    ;(todayBySlot[s] ??= []).push(mapRow(t))
+  })
   const total = sched.length
   const done = sched.filter((t) => isDone(data, t.id, todayKey)).length
   const pct = total ? done / total : 0
@@ -348,12 +368,12 @@ export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a')
       const t = resolveTask(data.tasks, tid)
       if (!t) return null
       const who = todayComp[tid].p
-      const color = who === 'a' ? colorA : colorB
+      const color = pcolor(who)
       return {
         task: t,
         emoji: t.emoji,
         name: t.name,
-        sub: `${who === 'a' ? nameA : nameB} · ${t.points}${t.points === 1 ? ' punto' : ' puntos'}`,
+        sub: `${pname(who)} · ${t.points}${t.points === 1 ? ' punto' : ' puntos'}`,
         pointsBadge: `+${t.points}`,
         done: true,
         bg: color,
@@ -364,27 +384,29 @@ export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a')
     })
     .filter((r): r is TaskRow => r !== null)
 
-  // cumulative scoreboard — lifetime points per person, never reset
-  let scoreA = 0
-  let scoreB = 0
+  // cumulative scoreboard — lifetime points per member
+  const score: Record<string, number> = {}
+  slots.forEach((s) => (score[s] = 0))
   Object.keys(data.completions).forEach((key) => {
     const c = data.completions[key]
     Object.keys(c).forEach((tid) => {
       const tk = resolveTask(data.tasks, tid)
       if (!tk) return
-      if (compP(c[tid]) === 'a') scoreA += tk.points
-      else scoreB += tk.points
+      const s = compP(c[tid])
+      if (s != null && s in score) score[s] += tk.points
     })
   })
-  const totalEarned = scoreA + scoreB
+  const totalEarned = slots.reduce((sum, s) => sum + score[s], 0)
   const totalPoints = totalEarned // alias kept for back-compat
-  // per-person spendable balance = own earned points minus own redemptions
+
+  // per-member spendable balance = own earned points minus own redemptions
   const redemptions = data.redemptions ?? []
-  const spentA = redemptions.filter((r) => r.by === 'a').reduce((s, r) => s + r.cost, 0)
-  const spentB = redemptions.filter((r) => r.by === 'b').reduce((s, r) => s + r.cost, 0)
-  const balanceA = scoreA - spentA
-  const balanceB = scoreB - spentB
-  const balance = viewer === 'a' ? balanceA : balanceB // the current user's spendable
+  const spent: Record<string, number> = {}
+  slots.forEach((s) => (spent[s] = 0))
+  redemptions.forEach((r) => {
+    if (r.by in spent) spent[r.by] += r.cost
+  })
+  const balance = (score[viewer] ?? 0) - (spent[viewer] ?? 0) // the current user's spendable
 
   // cooperative streak (whole house done)
   let streak = 0
@@ -416,7 +438,7 @@ export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a')
     .sort(sortTasks)
     .map(taskRow)
 
-  // rewards — affordable against the spendable balance (earned − redeemed)
+  // rewards — affordable against the viewer's spendable balance
   const rewSorted = data.rewards.slice().sort((a, b) => a.cost - b.cost)
   const nextReward: Reward | undefined = rewSorted.find((r) => balance < r.cost)
   const rewardRows: RewardRow[] = rewSorted.map((r) => {
@@ -442,8 +464,8 @@ export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a')
     .map((r) => ({
       emoji: r.emoji,
       text: r.text,
-      whoName: r.by === 'a' ? nameA : nameB,
-      color: r.by === 'a' ? colorA : colorB,
+      whoName: pname(r.by),
+      color: pcolor(r.by),
       cost: r.cost,
       dateLabel: new Date(r.t).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', ''),
       used: !!r.used,
@@ -458,14 +480,14 @@ export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a')
     else invMap.set(r.rewardId, { rewardId: r.rewardId, emoji: r.emoji, text: r.text, cost: r.cost, count: 1, oldestId: r.id })
   })
   const myInventory: InventoryGroup[] = Array.from(invMap.values())
-  const partnerUnusedCount = redemptions.filter((r) => r.by !== viewer && !r.used).length
+  const othersUnusedCount = redemptions.filter((r) => r.by !== viewer && !r.used).length
 
   // achievements
   const st = computeStats(data, now)
-  const bothWeek = scoreA > 0 && scoreB > 0
+  const allContributed = slots.length > 0 && slots.every((s) => score[s] > 0)
   const defs = [
     { emoji: '🌱', label: 'Primer día', on: st.anyDone },
-    { emoji: '🤝', label: 'En equipo', on: bothWeek },
+    { emoji: '🤝', label: 'En equipo', on: allContributed },
     { emoji: '🔥', label: 'Racha 7', on: st.longest >= 7 },
     { emoji: '⭐', label: 'Semana perfecta', on: st.perfectWeek },
     { emoji: '🌅', label: 'Madrugador', on: st.madrugador },
@@ -482,12 +504,27 @@ export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a')
   }))
   const medalCount = `${defs.filter((m) => m.on).length} / ${defs.length}`
 
+  // members (one per active slot, ranked-friendly) + leader(s)
+  const maxScore = Math.max(0, ...slots.map((s) => score[s]))
+  const members: MemberVM[] = slots.map((s) => {
+    const rows = todayBySlot[s] ?? []
+    return {
+      slot: s,
+      name: pname(s),
+      color: pcolor(s),
+      photo: P[s]?.photo ?? null,
+      score: score[s],
+      balance: score[s] - spent[s],
+      spent: spent[s],
+      today: rows,
+      count: `· ${rows.length} ${rows.length === 1 ? 'tarea' : 'tareas'}`,
+      isLeader: maxScore > 0 && score[s] === maxScore,
+    }
+  })
+
   return {
     dateLabel,
-    nameA,
-    nameB,
-    colorA,
-    colorB,
+    members,
     ringOffset: 264 * (1 - pct),
     progressPctLabel: total ? `${Math.round(pct * 100)}%` : '—',
     progressTitle: total === 0 ? 'Día libre' : `${done} de ${total}`,
@@ -498,23 +535,13 @@ export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a')
       streak === 0
         ? 'Completad el día de hoy para empezar la racha'
         : `Lleváis ${streak}${streak === 1 ? ' día' : ' días'} con la casa al día`,
-    scoreA,
-    scoreB,
     totalPoints,
     totalEarned,
     viewer,
-    viewerName: viewer === 'a' ? nameA : nameB,
+    viewerName: pname(viewer),
     balance,
-    balanceA,
-    balanceB,
-    leaderA: scoreA > scoreB && scoreA > 0,
-    leaderB: scoreB > scoreA && scoreB > 0,
-    todayA,
-    todayB,
     extrasToday,
     todayDoneIds,
-    countA: `· ${todayA.length}${todayA.length === 1 ? ' tarea' : ' tareas'}`,
-    countB: `· ${todayB.length}${todayB.length === 1 ? ' tarea' : ' tareas'}`,
     plant: plantInfo(data, now),
     nextReward,
     nextRemaining: nextReward ? nextReward.cost - balance : 0,
@@ -522,7 +549,7 @@ export function computeModel(data: HouseholdData, now: Date, viewer: Slot = 'a')
     rewardRows,
     redemptionRows,
     myInventory,
-    partnerUnusedCount,
+    othersUnusedCount,
     rewardEdits,
     medals,
     medalCount,

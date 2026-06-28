@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { HouseholdData } from '../types'
-import { type ChartBar, computeHistory, type Period, shiftAnchor } from '../lib/history'
+import { type ChartBar, computeHistory, type HistoryMember, type Period, shiftAnchor } from '../lib/history'
 import { card, SYS } from './styles'
 import { segGroup, segStyle } from './Sheet'
 import { Glyph } from './Icon'
@@ -46,23 +46,24 @@ export function HistoryView({ data, onClose }: { data: HouseholdData; onClose: (
         <NavArrow dir="next" onClick={() => setAnchor(shiftAnchor(period, anchor, 1))} disabled={!h.canNext} />
       </div>
 
-      {/* per-person summary */}
+      {/* per-member summary */}
       <div style={{ padding: '0 16px' }}>
-        <div style={{ ...card, display: 'flex', overflow: 'hidden' }}>
-          <SummaryCell color={h.colorA} name={h.nameA} count={h.countA} points={h.totalA} />
-          <div style={{ width: 1, background: 'rgba(0,0,0,0.06)' }} />
-          <SummaryCell color={h.colorB} name={h.nameB} count={h.countB} points={h.totalB} />
+        <div style={{ ...card, display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}>
+          {h.members.map((m) => (
+            <SummaryCell key={m.slot} color={m.color} name={m.name} count={m.count} points={m.total} />
+          ))}
         </div>
       </div>
 
       {/* stacked bar chart */}
-      {h.countA + h.countB > 0 && (
+      {h.members.some((m) => m.count > 0) && (
         <div style={{ padding: '12px 16px 0' }}>
           <div style={{ ...card, padding: '14px 14px 10px' }}>
-            <BarChart bars={h.chart} colorA={h.colorA} colorB={h.colorB} period={period} />
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 18, marginTop: 10 }}>
-              <Legend color={h.colorA} name={h.nameA} />
-              <Legend color={h.colorB} name={h.nameB} />
+            <BarChart bars={h.chart} members={h.members} period={period} />
+            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 14, marginTop: 10 }}>
+              {h.members.map((m) => (
+                <Legend key={m.slot} color={m.color} name={m.name} />
+              ))}
             </div>
           </div>
         </div>
@@ -115,7 +116,7 @@ export function HistoryView({ data, onClose }: { data: HouseholdData; onClose: (
 
 function SummaryCell({ color, name, count, points }: { color: string; name: string; count: number; points: number }) {
   return (
-    <div style={{ flex: 1, padding: '14px 10px 16px', textAlign: 'center' }}>
+    <div style={{ flex: '1 1 0', minWidth: 84, padding: '14px 10px 16px', textAlign: 'center' }}>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
         <span style={{ width: 9, height: 9, borderRadius: '50%', background: color }} />
         <span style={{ font: `600 14px ${SYS}`, color: '#2C2C28' }}>{name}</span>
@@ -137,21 +138,23 @@ function Legend({ color, name }: { color: string; name: string }) {
   )
 }
 
-function BarChart({ bars, colorA, colorB, period }: { bars: ChartBar[]; colorA: string; colorB: string; period: Period }) {
-  const max = Math.max(1, ...bars.map((b) => b.a + b.b))
+function BarChart({ bars, members, period }: { bars: ChartBar[]; members: HistoryMember[]; period: Period }) {
+  const dayTotal = (b: ChartBar) => members.reduce((s, m) => s + (b.counts[m.slot] || 0), 0)
+  const max = Math.max(1, ...bars.map(dayTotal))
   const H = 76
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: period === 'week' ? 8 : 3, height: H + 16 }}>
       {bars.map((b, i) => {
-        const aH = b.a > 0 ? Math.max(3, (b.a / max) * H) : 0
-        const bH = b.b > 0 ? Math.max(3, (b.b / max) * H) : 0
         const showLabel = period === 'week' || i === 0 || Number(b.label) % 5 === 0
+        const segs = members.map((m) => ({ color: m.color, v: b.counts[m.slot] || 0 })).filter((s) => s.v > 0)
+        const tot = segs.reduce((s, x) => s + x.v, 0)
         return (
           <div key={i} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
             <div style={{ height: H, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', width: period === 'week' ? 26 : '78%' }}>
-              <div style={{ height: aH + bH, borderRadius: '4px 4px 0 0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                {bH > 0 && <div style={{ height: bH, background: colorB }} />}
-                {aH > 0 && <div style={{ height: aH, background: colorA }} />}
+              <div style={{ height: tot > 0 ? Math.max(3, (tot / max) * H) : 0, borderRadius: '4px 4px 0 0', overflow: 'hidden', display: 'flex', flexDirection: 'column-reverse' }}>
+                {segs.map((s, j) => (
+                  <div key={j} style={{ flex: s.v, background: s.color }} />
+                ))}
               </div>
             </div>
             <div style={{ font: `500 10px ${SYS}`, color: '#A9A49A', height: 12 }}>{showLabel ? b.label : ''}</div>
